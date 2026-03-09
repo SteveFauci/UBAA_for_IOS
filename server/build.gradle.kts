@@ -61,6 +61,7 @@ dependencies {
   implementation(libs.ktor.server.auth.jwt) // JWT 认证
   implementation(libs.java.jwt)
   implementation(libs.sqlite.jdbc) // 会话持久化数据库
+  implementation(libs.redis.kotlin) // Redis 缓存支持
 
   testImplementation(libs.ktor.serverTestHost)
   testImplementation(libs.kotlin.testJunit)

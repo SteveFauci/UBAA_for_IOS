@@ -8,11 +8,24 @@ import java.util.concurrent.ConcurrentHashMap
 
 /** 课堂签到业务服务。 管理签到系统的独立客户端会话缓存。 */
 object SigninService {
-  private val clientCache = ConcurrentHashMap<String, SigninClient>()
+  private const val DEFAULT_MAX_IDLE_MILLIS = 30 * 60 * 1000L
+
+  private data class CachedClient(
+    val client: SigninClient,
+    @Volatile var lastAccessAt: Long,
+  )
+
+  private val clientCache = ConcurrentHashMap<String, CachedClient>()
 
   /** 获取或创建指定学生的签到客户端。 */
-  private fun getClient(studentId: String): SigninClient =
-    clientCache.getOrPut(studentId) { SigninClient(studentId) }
+  private fun getClient(studentId: String): SigninClient {
+    val now = System.currentTimeMillis()
+    val cached =
+      clientCache.compute(studentId) { _, existing ->
+        existing?.also { it.lastAccessAt = now } ?: CachedClient(SigninClient(studentId), now)
+      }!!
+    return cached.client
+  }
 
   /** 获取今日的签到状态列表。 */
   suspend fun getTodayClasses(studentId: String): SigninStatusResponse {
@@ -29,5 +42,24 @@ object SigninService {
       success = success,
       message = message,
     )
+  }
+
+  fun cleanupExpiredClients(maxIdleMillis: Long = DEFAULT_MAX_IDLE_MILLIS): Int {
+    val cutoff = System.currentTimeMillis() - maxIdleMillis
+    var removed = 0
+    for ((studentId, cached) in clientCache.entries.toList()) {
+      if (cached.lastAccessAt >= cutoff) continue
+      if (!clientCache.remove(studentId, cached)) continue
+      cached.client.close()
+      removed++
+    }
+    return removed
+  }
+
+  fun cacheSize(): Int = clientCache.size
+
+  fun closeAll() {
+    clientCache.values.forEach { it.client.close() }
+    clientCache.clear()
   }
 }

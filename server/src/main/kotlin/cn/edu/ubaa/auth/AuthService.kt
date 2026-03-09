@@ -50,7 +50,7 @@ class AuthService(private val sessionManager: SessionManager = GlobalSessionMana
 
     // 1. 尝试复用或准备会话环境
     if (!hasClientId && !hasExecution) {
-      sessionManager.getSession(request.username)?.let { existingSession ->
+      sessionManager.getSession(request.username, SessionManager.SessionAccess.READ_ONLY)?.let { existingSession ->
         val cachedUser = runCatching { verifySession(existingSession.client) }.getOrNull()
         if (cachedUser != null) {
           val newToken = JwtUtil.generateToken(request.username, Duration.ofMinutes(30))
@@ -156,7 +156,7 @@ class AuthService(private val sessionManager: SessionManager = GlobalSessionMana
 
   /** 注销用户。 通知 SSO 并清理本地所有关联会话。 */
   suspend fun logout(username: String) {
-    val session = sessionManager.getSession(username)
+    val session = sessionManager.getSession(username, SessionManager.SessionAccess.READ_ONLY)
     if (session != null) {
       try {
         session.client.get(VpnCipher.toVpnUrl("https://sso.buaa.edu.cn/logout"))

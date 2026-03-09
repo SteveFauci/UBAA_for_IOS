@@ -31,7 +31,7 @@ class BykcClient(private val username: String) {
 
   /** 确保当前用户存在活跃的后台会话。 */
   private suspend fun ensureSession(): SessionManager.UserSession {
-    session = sessionManager.getSession(username)
+    session = sessionManager.requireSession(username)
     return session ?: throw IllegalStateException("No active session for $username")
   }
 

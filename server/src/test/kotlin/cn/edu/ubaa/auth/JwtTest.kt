@@ -13,12 +13,10 @@ class JwtUtilTest {
     val username = "testuser"
     val ttl = Duration.ofMinutes(30)
 
-    // Generate token
     val token = JwtUtil.generateToken(username, ttl)
     assertNotNull(token)
     assertTrue(token.isNotBlank())
 
-    // Validate token
     val extractedUsername = JwtUtil.validateTokenAndGetUsername(token)
     assertEquals(username, extractedUsername)
   }
@@ -26,16 +24,13 @@ class JwtUtilTest {
   @Test
   fun testJwtExpiration() {
     val username = "testuser"
-    val shortTtl = Duration.ofMillis(1) // Very short TTL
+    val shortTtl = Duration.ofMillis(1)
 
     val token = JwtUtil.generateToken(username, shortTtl)
-
-    // Wait for token to expire
     Thread.sleep(10)
 
     val extractedUsername = JwtUtil.validateTokenAndGetUsername(token)
-    assertNull(extractedUsername) // Should be null due to expiration
-
+    assertNull(extractedUsername)
     assertTrue(JwtUtil.isTokenExpired(token))
   }
 
@@ -44,34 +39,26 @@ class JwtUtilTest {
     val invalidToken = "invalid.jwt.token"
     val extractedUsername = JwtUtil.validateTokenAndGetUsername(invalidToken)
     assertNull(extractedUsername)
-
     assertTrue(JwtUtil.isTokenExpired(invalidToken))
   }
-
-  /*
-  @Test
-  fun testExtractUsernameWithoutValidation() {
-      val username = "testuser"
-      val ttl = Duration.ofMinutes(30)
-
-      val token = JwtUtil.generateToken(username, ttl)
-      val extractedUsername = JwtUtil.extractUsernameWithoutValidation(token)
-      assertEquals(username, extractedUsername)
-
-      // Should work even with expired token
-      val expiredToken = JwtUtil.generateToken(username, Duration.ofMillis(1))
-      Thread.sleep(10)
-      val extractedFromExpired = JwtUtil.extractUsernameWithoutValidation(expiredToken)
-      assertEquals(username, extractedFromExpired)
-  }
-  */
 }
 
 class SessionManagerJwtTest {
+  private fun createSessionManager(
+    sessionTtl: Duration = Duration.ofMinutes(30),
+    activityPersistInterval: Duration = Duration.ofSeconds(60),
+  ): SessionManager {
+    return SessionManager(
+      sessionTtl = sessionTtl,
+      activityPersistInterval = activityPersistInterval,
+      sessionStore = InMemorySessionStore(),
+      cookieStorageFactory = InMemoryCookieStorageFactory(),
+    )
+  }
 
   @Test
   fun testSessionWithTokenCommit() = runBlocking {
-    val sessionManager = SessionManager()
+    val sessionManager = createSessionManager()
     val username = "testuser"
     val userData = UserData("Test User", "123456")
 
@@ -82,7 +69,6 @@ class SessionManagerJwtTest {
     assertEquals(userData, sessionWithToken.session.userData)
     assertEquals(username, sessionWithToken.session.username)
 
-    // Verify token maps to session
     val retrievedSession = sessionManager.getSessionByToken(sessionWithToken.jwtToken)
     assertNotNull(retrievedSession)
     assertEquals(username, retrievedSession.username)
@@ -90,55 +76,42 @@ class SessionManagerJwtTest {
 
   @Test
   fun testGetSessionByInvalidToken() = runBlocking {
-    val sessionManager = SessionManager()
+    val sessionManager = createSessionManager()
     val session = sessionManager.getSessionByToken("invalid.token")
     assertNull(session)
   }
 
-  /*
   @Test
-  fun testInvalidateSessionByToken() = runBlocking {
-      val sessionManager = SessionManager()
-      val username = "testuser"
-      val userData = UserData("Test User", "123456")
+  fun testReadOnlySessionAccessDoesNotTouchLastActivity() = runBlocking {
+    val sessionManager = createSessionManager(activityPersistInterval = Duration.ofMillis(1))
+    val username = "readonly-user"
+    val userData = UserData("Read Only", "10001")
 
-      val candidate = sessionManager.prepareSession(username)
-      val sessionWithToken = sessionManager.commitSessionWithToken(candidate, userData)
+    val candidate = sessionManager.prepareSession(username)
+    val sessionWithToken = sessionManager.commitSessionWithToken(candidate, userData)
+    val before = sessionWithToken.session.lastActivity()
 
-      // Verify session exists
-      val retrievedSession = sessionManager.getSessionByToken(sessionWithToken.jwtToken)
-      assertNotNull(retrievedSession)
+    Thread.sleep(10)
 
-      // Invalidate by token
-      sessionManager.invalidateSessionByToken(sessionWithToken.jwtToken)
-
-      // Verify session is gone
-      val sessionAfterInvalidation = sessionManager.getSessionByToken(sessionWithToken.jwtToken)
-      assertNull(sessionAfterInvalidation)
+    val readOnlySession = sessionManager.getSession(username, SessionManager.SessionAccess.READ_ONLY)
+    assertNotNull(readOnlySession)
+    assertEquals(before, readOnlySession.lastActivity())
   }
 
   @Test
-  fun testCleanupExpiredTokens() = runBlocking {
-      val sessionManager = SessionManager(Duration.ofSeconds(1)) // Short TTL for test
-      val username = "testuser"
-      val userData = UserData("Test User", "123456")
+  fun testCleanupExpiredSessionsRemovesExpiredSession() = runBlocking {
+    val sessionManager = createSessionManager(sessionTtl = Duration.ofSeconds(1))
+    val username = "expired-user"
+    val userData = UserData("Expired User", "10002")
 
-      val candidate = sessionManager.prepareSession(username)
-      val sessionWithToken = sessionManager.commitSessionWithToken(candidate, userData)
+    val candidate = sessionManager.prepareSession(username)
+    val sessionWithToken = sessionManager.commitSessionWithToken(candidate, userData)
+    assertNotNull(sessionManager.getSession(username, SessionManager.SessionAccess.READ_ONLY))
 
-      // Verify session exists
-      val retrievedSession = sessionManager.getSessionByToken(sessionWithToken.jwtToken)
-      assertNotNull(retrievedSession)
+    Thread.sleep(1200)
 
-      // Wait for session to expire
-      Thread.sleep(1500)
-
-      // Clean up expired sessions
-      sessionManager.cleanupExpiredSessions()
-
-      // Verify session is cleaned up
-      val sessionAfterCleanup = sessionManager.getSessionByToken(sessionWithToken.jwtToken)
-      assertNull(sessionAfterCleanup)
+    val removed = sessionManager.cleanupExpiredSessions()
+    assertEquals(1, removed)
+    assertNull(sessionManager.getSession(username, SessionManager.SessionAccess.READ_ONLY))
   }
-  */
 }

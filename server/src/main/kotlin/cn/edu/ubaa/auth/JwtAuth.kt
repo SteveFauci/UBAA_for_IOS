@@ -8,6 +8,7 @@ import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.util.AttributeKey
 import kotlinx.serialization.Serializable
 
 @Serializable data class JwtErrorResponse(val error: JwtErrorDetails)
@@ -17,6 +18,7 @@ import kotlinx.serialization.Serializable
 /** JWT Authentication configuration and utilities for protecting routes. */
 object JwtAuth {
   const val JWT_AUTH = "jwt-auth"
+  private val sessionAttributeKey = AttributeKey<SessionManager.UserSession>("user-session")
 
   /** Configures JWT authentication for the Ktor application. */
   fun Application.configureJwtAuth() {
@@ -30,7 +32,10 @@ object JwtAuth {
         )
         validate { credential ->
           val username = credential.payload.subject
-          if (username != null && GlobalSessionManager.instance.getSession(username) != null) {
+          if (
+            username != null &&
+              GlobalSessionManager.instance.getSession(username, SessionManager.SessionAccess.READ_ONLY) != null
+          ) {
             JWTPrincipal(credential.payload)
           } else {
             null
@@ -50,19 +55,32 @@ object JwtAuth {
   val ApplicationCall.jwtUsername: String?
     get() = principal<JWTPrincipal>()?.payload?.subject
 
-  /** Extension function to get the user session from JWT token in the request. */
+  suspend fun ApplicationCall.currentUserSession(): SessionManager.UserSession? {
+    attributes.getOrNull(sessionAttributeKey)?.let { return it }
+
+    val session =
+      when (val username = jwtUsername) {
+        null -> {
+          val authHeader = request.headers[HttpHeaders.Authorization]
+          if (authHeader?.startsWith("Bearer ") != true) return null
+          val token = authHeader.removePrefix("Bearer ")
+          GlobalSessionManager.instance.getSessionByToken(token, SessionManager.SessionAccess.TOUCH)
+        }
+        else -> GlobalSessionManager.instance.getSession(username, SessionManager.SessionAccess.TOUCH)
+      } ?: return null
+
+    attributes.put(sessionAttributeKey, session)
+    return session
+  }
+
+  /** Extension function to get the user session from the authenticated request. */
   suspend fun ApplicationCall.getUserSession(): SessionManager.UserSession? {
-    val authHeader = request.headers[HttpHeaders.Authorization]
-    if (authHeader?.startsWith("Bearer ") == true) {
-      val token = authHeader.removePrefix("Bearer ")
-      return GlobalSessionManager.instance.getSessionByToken(token)
-    }
-    return null
+    return currentUserSession()
   }
 
   /** Extension function to require a user session, throwing an exception if not found. */
   suspend fun ApplicationCall.requireUserSession(): SessionManager.UserSession {
-    return getUserSession() ?: throw IllegalStateException("No valid session found for JWT token")
+    return currentUserSession() ?: throw IllegalStateException("No valid session found for request")
   }
 }
 

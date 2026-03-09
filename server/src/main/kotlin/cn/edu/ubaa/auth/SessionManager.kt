@@ -16,41 +16,88 @@ import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.serialization.json.Json
 
-/**
- * 会话管理器。 负责隔离不同用户的 HttpClient 实例、Cookie 存储，以及管理 JWT 与用户会话之间的映射关系。 支持会话持久化到 SQLite 数据库，实现重启后的会话恢复。
- */
+interface SessionPersistence {
+  data class SessionRecord(
+    val userData: UserData,
+    val authenticatedAt: Instant,
+    val lastActivity: Instant,
+  )
+
+  suspend fun saveSession(
+    username: String,
+    userData: UserData,
+    authenticatedAt: Instant,
+    lastActivity: Instant,
+  )
+
+  suspend fun updateLastActivity(username: String, lastActivity: Instant)
+
+  suspend fun loadSession(username: String): SessionRecord?
+
+  suspend fun deleteSession(username: String)
+
+  fun close()
+}
+
+interface ManagedCookieStorage : CookiesStorage {
+  suspend fun clear()
+
+  suspend fun migrateTo(newSubject: String)
+}
+
+interface ManagedCookieStorageFactory {
+  fun create(subject: String): ManagedCookieStorage
+
+  suspend fun clearSubject(subject: String)
+}
+
+/** 会话管理器。 负责隔离不同用户的 HttpClient 实例、Cookie 存储，以及管理 JWT 与用户会话之间的映射关系。 支持会话持久化到 Redis，实现重启后的会话恢复。 */
 class SessionManager(
   private val sessionTtl: Duration = Duration.ofMinutes(30),
-  private val dbPath: String = DEFAULT_DB_PATH,
+  private val redisUri: String = DEFAULT_REDIS_URI,
+  private val activityPersistInterval: Duration = Duration.ofSeconds(60),
+  private val sessionStore: SessionPersistence = RedisSessionStore(redisUri),
+  private val cookieStorageFactory: ManagedCookieStorageFactory = RedisCookieStorageFactory(redisUri),
 ) {
+
+  enum class SessionAccess {
+    READ_ONLY,
+    TOUCH,
+  }
 
   /** 登录过程中的临时会话载体。 */
   data class SessionCandidate(
     val username: String,
     val client: HttpClient,
-    val cookieStorage: CookiesStorage,
+    val cookieStorage: ManagedCookieStorage,
   )
 
   /** 活跃的用户会话。 封装了用户的认证信息、专属客户端以及活动时间追踪。 */
   class UserSession(
     val username: String,
     val client: HttpClient,
-    val cookieStorage: CookiesStorage,
+    val cookieStorage: ManagedCookieStorage,
     val userData: UserData,
     val authenticatedAt: Instant,
     initialActivity: Instant = authenticatedAt,
   ) {
     @Volatile private var lastActivity: Instant = initialActivity
+    @Volatile private var lastPersistedActivity: Instant = initialActivity
 
-    /** 判断会话是否因长时间未活动而过期。 */
     fun isExpired(ttl: Duration): Boolean = Instant.now().isAfter(lastActivity.plus(ttl))
 
-    /** 标记当前会话为活跃状态，更新最后活动时间。 */
-    fun markActive() {
-      lastActivity = Instant.now()
+    fun markActive(now: Instant = Instant.now()) {
+      lastActivity = now
     }
 
-    /** 获取最后活动时间。 */
+    fun shouldPersistActivity(now: Instant, minInterval: Duration): Boolean {
+      return !now.isBefore(lastPersistedActivity.plus(minInterval))
+    }
+
+    fun markPersistedActivity(at: Instant = lastActivity) {
+      lastPersistedActivity = at
+    }
+
     fun lastActivity(): Instant = lastActivity
   }
 
@@ -61,28 +108,25 @@ class SessionManager(
   data class PreLoginCandidate(
     val clientId: String,
     val client: HttpClient,
-    val cookieStorage: CookiesStorage,
+    val cookieStorage: ManagedCookieStorage,
     val createdAt: Instant = Instant.now(),
   ) {
-    /** 预登录会话有效期较短。 */
     fun isExpired(ttl: Duration): Boolean = Instant.now().isAfter(createdAt.plus(ttl))
   }
 
   private val sessions = ConcurrentHashMap<String, UserSession>()
-  private val tokenToUsername = ConcurrentHashMap<String, String>()
-  private val sessionStore = SqliteSessionStore(dbPath)
   private val preLoginSessions = ConcurrentHashMap<String, PreLoginCandidate>()
   private val preLoginTtl: Duration = Duration.ofMinutes(5)
 
-  /** 为 preload 流程准备预登录环境。 如果 clientId 已有活跃会话则复用，否则创建。 */
   suspend fun preparePreLoginSession(clientId: String): PreLoginCandidate {
     preLoginSessions[clientId]?.let { existing ->
       if (!existing.isExpired(preLoginTtl)) return existing
-      existing.client.close()
-      preLoginSessions.remove(clientId)
+      if (preLoginSessions.remove(clientId, existing)) {
+        disposePreLoginCandidate(existing, clearCookies = true)
+      }
     }
 
-    val cookieStorage = SqliteCookieStorage(dbPath, "prelogin_$clientId")
+    val cookieStorage = cookieStorageFactory.create(preLoginSubject(clientId))
     cookieStorage.clear()
 
     val client = buildClient(cookieStorage)
@@ -91,35 +135,31 @@ class SessionManager(
     return candidate
   }
 
-  /** 将预登录会话提升为正式用户会话。 */
   suspend fun promotePreLoginSession(clientId: String, username: String): SessionCandidate? {
     val preLogin = preLoginSessions.remove(clientId) ?: return null
     if (preLogin.isExpired(preLoginTtl)) {
-      preLogin.client.close()
+      disposePreLoginCandidate(preLogin, clearCookies = true)
       return null
     }
 
-    if (preLogin.cookieStorage is SqliteCookieStorage) {
-      preLogin.cookieStorage.migrateTo(username)
-    }
+    preLogin.cookieStorage.migrateTo(username)
 
-    val newCookieStorage = SqliteCookieStorage(dbPath, username)
+    val newCookieStorage = cookieStorageFactory.create(username)
     val newClient = buildClient(newCookieStorage)
     preLogin.client.close()
+    closeCookieStorage(preLogin.cookieStorage)
 
     return SessionCandidate(username, newClient, newCookieStorage)
   }
 
-  /** 准备一个全新的登录环境（不基于 preload）。 */
   suspend fun prepareSession(username: String): SessionCandidate {
-    val cookieStorage = SqliteCookieStorage(dbPath, username)
+    val cookieStorage = cookieStorageFactory.create(username)
     cookieStorage.clear()
     val client = buildClient(cookieStorage)
     return SessionCandidate(username, client, cookieStorage)
   }
 
-  /** 提交并激活会话，生成 JWT 令牌并持久化状态。 */
-  fun commitSessionWithToken(candidate: SessionCandidate, userData: UserData): SessionWithToken {
+  suspend fun commitSessionWithToken(candidate: SessionCandidate, userData: UserData): SessionWithToken {
     val newSession =
       UserSession(
         username = candidate.username,
@@ -132,11 +172,9 @@ class SessionManager(
     val jwtToken = JwtUtil.generateToken(candidate.username, sessionTtl)
     sessions.compute(candidate.username) { _, previous ->
       previous?.client?.close()
+      closeCookieStorage(previous?.cookieStorage)
       newSession
     }
-
-    cleanupTokensForUser(candidate.username)
-    tokenToUsername[jwtToken] = candidate.username
 
     sessionStore.saveSession(
       username = candidate.username,
@@ -148,51 +186,107 @@ class SessionManager(
     return SessionWithToken(newSession, jwtToken)
   }
 
-  /** 获取活跃会话，支持从数据库恢复已持久化的会话。 */
-  suspend fun getSession(username: String): UserSession? {
+  suspend fun getSession(
+    username: String,
+    access: SessionAccess = SessionAccess.TOUCH,
+  ): UserSession? {
     val active = sessions[username] ?: restoreSession(username) ?: return null
     if (active.isExpired(sessionTtl)) {
       invalidateSession(username)
       return null
     }
-    active.markActive()
-    sessionStore.updateLastActivity(username, active.lastActivity())
+    if (access == SessionAccess.TOUCH) {
+      touchSession(username, active)
+    }
     sessions[username] = active
     return active
   }
 
-  /** 通过 JWT 令牌反查会话。 */
-  suspend fun getSessionByToken(jwtToken: String): UserSession? {
+  suspend fun getSessionByToken(
+    jwtToken: String,
+    access: SessionAccess = SessionAccess.TOUCH,
+  ): UserSession? {
     val username = JwtUtil.validateTokenAndGetUsername(jwtToken) ?: return null
-    val session = getSession(username)
-    if (session != null) tokenToUsername[jwtToken] = username
-    return session
+    return getSession(username, access)
   }
 
-  /** 获取会话，若不存在则抛出异常。 用于需要强制登录状态的业务服务调用。 */
   suspend fun requireSession(username: String): UserSession {
-    return getSession(username)
+    return getSession(username, SessionAccess.TOUCH)
       ?: throw RuntimeException("Session expired or invalid for user: $username")
   }
 
-  /** 彻底销毁用户会话及其所有关联令牌。 */
   suspend fun invalidateSession(username: String) {
-    sessions.remove(username)?.client?.close()
-    SqliteCookieStorage(dbPath, username).clear()
-    cleanupTokensForUser(username)
+    val existing = sessions.remove(username)
+    existing?.client?.close()
+    clearAndCloseCookieStorage(username, existing?.cookieStorage)
     sessionStore.deleteSession(username)
   }
 
-  /** 构建针对特定用户会话配置的 HttpClient。 */
+  suspend fun cleanupExpiredSessions(): Int {
+    var removed = 0
+    for ((username, session) in sessions.entries.toList()) {
+      if (!session.isExpired(sessionTtl)) continue
+      if (!sessions.remove(username, session)) continue
+      session.client.close()
+      clearAndCloseCookieStorage(username, session.cookieStorage)
+      sessionStore.deleteSession(username)
+      removed++
+    }
+    return removed
+  }
+
+  suspend fun cleanupExpiredPreLoginSessions(): Int {
+    var removed = 0
+    for ((clientId, candidate) in preLoginSessions.entries.toList()) {
+      if (!candidate.isExpired(preLoginTtl)) continue
+      if (!preLoginSessions.remove(clientId, candidate)) continue
+      disposePreLoginCandidate(candidate, clearCookies = true)
+      removed++
+    }
+    return removed
+  }
+
+  suspend fun cleanupPreLoginSession(clientId: String) {
+    val candidate = preLoginSessions.remove(clientId) ?: return
+    disposePreLoginCandidate(candidate, clearCookies = true)
+  }
+
+  fun activeSessionCount(): Int = sessions.size
+
+  fun preLoginSessionCount(): Int = preLoginSessions.size
+
+  fun close() {
+    sessions.values.forEach {
+      it.client.close()
+      closeCookieStorage(it.cookieStorage)
+    }
+    sessions.clear()
+
+    preLoginSessions.values.forEach {
+      it.client.close()
+      closeCookieStorage(it.cookieStorage)
+    }
+    preLoginSessions.clear()
+
+    sessionStore.close()
+  }
+
+  private suspend fun touchSession(username: String, session: UserSession) {
+    val now = Instant.now()
+    session.markActive(now)
+    if (session.shouldPersistActivity(now, activityPersistInterval)) {
+      sessionStore.updateLastActivity(username, now)
+      session.markPersistedActivity(now)
+    }
+  }
+
   private fun buildClient(cookieStorage: CookiesStorage): HttpClient {
     return HttpClient(CIO) {
       engine {
-        // 代理支持
         val proxyUrl = System.getenv("HTTPS_PROXY") ?: System.getenv("HTTP_PROXY")
         if (!proxyUrl.isNullOrBlank()) {
           proxy = io.ktor.client.engine.ProxyBuilder.http(io.ktor.http.Url(proxyUrl))
         }
-        // 证书信任（开发环境）
         if (System.getenv("TRUST_ALL_CERTS")?.lowercase() == "true") {
           https {
             trustManager =
@@ -234,10 +328,9 @@ class SessionManager(
     }
   }
 
-  /** 从数据库记录中恢复会话状态。 */
-  private fun restoreSession(username: String): UserSession? {
+  private suspend fun restoreSession(username: String): UserSession? {
     val record = sessionStore.loadSession(username) ?: return null
-    val cookieStorage = SqliteCookieStorage(dbPath, username)
+    val cookieStorage = cookieStorageFactory.create(username)
     val client = buildClient(cookieStorage)
     return UserSession(
         username = username,
@@ -250,19 +343,32 @@ class SessionManager(
       .also { sessions[username] = it }
   }
 
-  private fun cleanupTokensForUser(username: String) {
-    tokenToUsername.entries
-      .filter { it.value == username }
-      .map { it.key }
-      .forEach { tokenToUsername.remove(it) }
+  private suspend fun disposePreLoginCandidate(candidate: PreLoginCandidate, clearCookies: Boolean) {
+    candidate.client.close()
+    if (clearCookies) {
+      clearAndCloseCookieStorage(preLoginSubject(candidate.clientId), candidate.cookieStorage)
+    } else {
+      closeCookieStorage(candidate.cookieStorage)
+    }
   }
 
-  fun cleanupPreLoginSession(clientId: String) {
-    preLoginSessions.remove(clientId)?.client?.close()
+  private suspend fun clearAndCloseCookieStorage(subject: String, storage: ManagedCookieStorage?) {
+    if (storage != null) {
+      storage.clear()
+      closeCookieStorage(storage)
+    } else {
+      cookieStorageFactory.clearSubject(subject)
+    }
   }
+
+  private fun closeCookieStorage(storage: ManagedCookieStorage?) {
+    runCatching { storage?.close() }
+  }
+
+  private fun preLoginSubject(clientId: String): String = "prelogin_$clientId"
 
   companion object {
-    private val DEFAULT_DB_PATH: String = System.getProperty("user.dir") + "/data/session_store.db"
+    private val DEFAULT_REDIS_URI: String = System.getenv("REDIS_URI") ?: "redis://localhost:6379"
   }
 }
 

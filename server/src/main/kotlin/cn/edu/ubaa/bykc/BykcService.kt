@@ -12,6 +12,7 @@ import cn.edu.ubaa.model.dto.BykcSignPointDto
 import cn.edu.ubaa.model.dto.BykcStatisticsDto
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.asin
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -33,14 +34,25 @@ class BykcService(private val sessionManager: SessionManager = GlobalSessionMana
   private val log = LoggerFactory.getLogger(BykcService::class.java)
   private val json = Json { ignoreUnknownKeys = true }
 
-  // 缓存用户 BykcClient，提升复用
-  private val clientCache = mutableMapOf<String, BykcClient>()
+  private data class CachedClient(
+    val client: BykcClient,
+    @Volatile var lastAccessAt: Long,
+  )
+
+  private val clientCache = ConcurrentHashMap<String, CachedClient>()
 
   /** 获取或创建用户专属的博雅客户端。 */
   private fun getClient(username: String): BykcClient {
-    return clientCache.getOrPut(username) {
-      BykcClient(username).also { log.debug("Created new BykcClient for user: {}", username) }
-    }
+    val now = System.currentTimeMillis()
+    val cached =
+      clientCache.compute(username) { _, existing ->
+        existing?.also { it.lastAccessAt = now }
+          ?: CachedClient(
+            BykcClient(username).also { log.debug("Created new BykcClient for user: {}", username) },
+            now,
+          )
+      }!!
+    return cached.client
   }
 
   /** 确保用户已在博雅系统中完成登录。 */
@@ -75,7 +87,6 @@ class BykcService(private val sessionManager: SessionManager = GlobalSessionMana
       result.content.mapNotNull { course ->
         try {
           val status = calculateCourseStatus(course)
-          // 默认过滤掉已过期的课程
           if (status == BykcCourseStatusEnum.EXPIRED || status == BykcCourseStatusEnum.ENDED)
             return@mapNotNull null
 
@@ -277,6 +288,23 @@ class BykcService(private val sessionManager: SessionManager = GlobalSessionMana
     } catch (e: Exception) {
       Result.failure(e)
     }
+  }
+
+  fun cleanupExpiredClients(maxIdleMillis: Long = 30 * 60 * 1000L): Int {
+    val cutoff = System.currentTimeMillis() - maxIdleMillis
+    var removed = 0
+    for ((username, cached) in clientCache.entries.toList()) {
+      if (cached.lastAccessAt >= cutoff) continue
+      if (!clientCache.remove(username, cached)) continue
+      removed++
+    }
+    return removed
+  }
+
+  fun cacheSize(): Int = clientCache.size
+
+  fun clearCache() {
+    clientCache.clear()
   }
 
   private suspend fun getSignConfig(client: BykcClient, courseId: Long): BykcSignConfigDto? {

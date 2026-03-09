@@ -30,6 +30,7 @@ buildkonfig = "0.15.2"
 dotenv = "6.5.0"
 kover = "0.9.1"
 micrometer = "1.14.2"
+redis = "7.2.1.RELEASE"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -79,6 +80,7 @@ ktor-server-auth-jwt = { module = "io.ktor:ktor-server-auth-jwt-jvm", version.re
 ktor-server-metrics-micrometer = { module = "io.ktor:ktor-server-metrics-micrometer-jvm", version.ref = "ktor" }
 micrometer-registry-prometheus = { module = "io.micrometer:micrometer-registry-prometheus", version.ref = "micrometer" }
 dotenv-kotlin = { module = "io.github.cdimascio:dotenv-kotlin", version.ref = "dotenv" }
+redis-kotlin = { module = "io.lettuce:lettuce-core", version.ref = "redis" }
 
 
 [plugins]

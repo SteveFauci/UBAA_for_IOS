@@ -15,7 +15,6 @@ import io.ktor.serialization.kotlinx.json.*
 import java.security.cert.X509Certificate
 import javax.net.ssl.X509TrustManager
 import kotlinx.serialization.json.*
-import org.slf4j.LoggerFactory
 
 /**
  * 课堂签到系统 (iclass) 原始 API 客户端。 负责 iclass 系统的独立登录、课堂列表获取及签到指令提交。
@@ -23,7 +22,6 @@ import org.slf4j.LoggerFactory
  * @param studentId 学号。
  */
 class SigninClient(private val studentId: String) {
-  private val log = LoggerFactory.getLogger(SigninClient::class.java)
   private val json = Json { ignoreUnknownKeys = true }
 
   /** 创建专用于 iclass 的 HttpClient，配置较宽松的 SSL 验证。 */
@@ -50,7 +48,7 @@ class SigninClient(private val studentId: String) {
 
   /** 执行 iclass 登录。目前 iclass 支持学号直接登录（无密码模式或特定逻辑）。 */
   private suspend fun login(): Boolean {
-    try {
+    return try {
       val response =
         client.get(VpnCipher.toVpnUrl("https://iclass.buaa.edu.cn:8347/app/user/login.action")) {
           parameter("password", "")
@@ -67,9 +65,9 @@ class SigninClient(private val studentId: String) {
       val result = jsonResponse["result"]?.jsonObject
       userId = result?.get("id")?.jsonPrimitive?.content
       sessionId = result?.get("sessionId")?.jsonPrimitive?.content
-      return userId != null && sessionId != null
-    } catch (e: Exception) {
-      return false
+      userId != null && sessionId != null
+    } catch (_: Exception) {
+      false
     }
   }
 
@@ -100,7 +98,7 @@ class SigninClient(private val studentId: String) {
           signStatus = obj["signStatus"]?.jsonPrimitive?.intOrNull ?: 0,
         )
       }
-    } catch (e: Exception) {
+    } catch (_: Exception) {
       emptyList()
     }
   }
@@ -109,7 +107,6 @@ class SigninClient(private val studentId: String) {
   suspend fun signIn(courseId: String): Pair<Boolean, String> {
     if (userId == null || sessionId == null) if (!login()) return false to "登录失败"
     return try {
-      // iclass 签到接口采用 HTTP 8081 端口
       val response =
         client.post(
           VpnCipher.toVpnUrl("http://iclass.buaa.edu.cn:8081/app/course/stu_scan_sign.action")
@@ -126,5 +123,11 @@ class SigninClient(private val studentId: String) {
     } catch (e: Exception) {
       false to (e.message ?: "网络异常")
     }
+  }
+
+  fun close() {
+    client.close()
+    userId = null
+    sessionId = null
   }
 }

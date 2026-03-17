@@ -41,34 +41,64 @@ class ClassroomViewModel(private val api: ClassroomApi = ClassroomApi()) : ViewM
   /** 当前的搜索关键字流。 */
   val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-  /** 根据搜索关键字过滤后的教室数据流。 自动响应 uiState 和 searchQuery 的变化。 */
+  private val _selectedBuilding = MutableStateFlow<String?>(null)
+  /** 当前选中的楼栋。null 表示展示全部楼栋。 */
+  val selectedBuilding: StateFlow<String?> = _selectedBuilding.asStateFlow()
+
+  /** 当前查询结果中的可选楼栋列表。 */
+  val availableBuildings: StateFlow<List<String>> =
+    _uiState
+      .map { state ->
+        if (state is ClassroomUiState.Success) {
+          state.data.d.list.keys.toList()
+        } else {
+          emptyList()
+        }
+      }
+      .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+  /** 根据楼栋与搜索关键字过滤后的教室数据流。 */
   val filteredData: StateFlow<Map<String, List<ClassroomInfo>>> =
-    combine(_uiState, _searchQuery) { state, query ->
+    combine(_uiState, _selectedBuilding, _searchQuery) { state, selectedBuilding, query ->
         if (state is ClassroomUiState.Success) {
           val allData = state.data.d.list
-          if (query.isBlank()) allData
-          else
-            allData
+          val buildingFilteredData =
+            selectedBuilding?.let { building ->
+              allData[building]?.let { listOfClassroom -> mapOf(building to listOfClassroom) }
+                ?: emptyMap()
+            } ?: allData
+          if (query.isBlank()) {
+            buildingFilteredData
+          } else {
+            buildingFilteredData
               .mapValues { (_, list) -> list.filter { it.name.contains(query, true) } }
               .filter { (building, list) -> building.contains(query, true) || list.isNotEmpty() }
+          }
         } else emptyMap()
       }
-      .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+      .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
   /** 更新搜索关键字。 */
   fun setSearchQuery(query: String) {
     _searchQuery.value = query
   }
 
+  /** 切换楼栋筛选；再次点击当前楼栋会恢复到全部楼栋。 */
+  fun toggleBuilding(building: String) {
+    _selectedBuilding.value = if (_selectedBuilding.value == building) null else building
+  }
+
   /** 切换校区并自动重新查询。 */
   fun setXqid(id: Int) {
     _xqid.value = id
+    _selectedBuilding.value = null
     query()
   }
 
   /** 切换日期并自动重新查询。 */
   fun setDate(date: String) {
     _date.value = date
+    _selectedBuilding.value = null
     query()
   }
 
@@ -78,7 +108,12 @@ class ClassroomViewModel(private val api: ClassroomApi = ClassroomApi()) : ViewM
       _uiState.value = ClassroomUiState.Loading
       api
         .queryClassrooms(_xqid.value, _date.value)
-        .onSuccess { _uiState.value = ClassroomUiState.Success(it) }
+        .onSuccess {
+          _uiState.value = ClassroomUiState.Success(it)
+          if (_selectedBuilding.value !in it.d.list.keys) {
+            _selectedBuilding.value = null
+          }
+        }
         .onFailure { _uiState.value = ClassroomUiState.Error(it.message ?: "未知错误") }
     }
   }

@@ -8,7 +8,7 @@ import io.ktor.client.request.*
  *
  * @param apiClient 使用的 ApiClient 实例。
  */
-class ClassroomApi(private val apiClient: ApiClient = ApiClientProvider.shared) {
+open class ClassroomApi(private val apiClient: ApiClient = ApiClientProvider.shared) {
   /**
    * 查询空闲教室列表。
    *
@@ -16,7 +16,7 @@ class ClassroomApi(private val apiClient: ApiClient = ApiClientProvider.shared) 
    * @param date 查询日期（yyyy-MM-dd）。
    * @return 包含各楼层教室空闲情况的响应体。
    */
-  suspend fun queryClassrooms(xqid: Int, date: String): Result<ClassroomQueryResponse> {
+  open suspend fun queryClassrooms(xqid: Int, date: String): Result<ClassroomQueryResponse> {
     return safeApiCall {
       apiClient.getClient().get("api/v1/classroom/query") {
         parameter("xqid", xqid)

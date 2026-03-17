@@ -2,6 +2,7 @@ package cn.edu.ubaa.ui.screens.classroom
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,6 +39,8 @@ fun ClassroomQueryScreen(
   val xqid by viewModel.xqid.collectAsState()
   val date by viewModel.date.collectAsState()
   val searchQuery by viewModel.searchQuery.collectAsState()
+  val selectedBuilding by viewModel.selectedBuilding.collectAsState()
+  val availableBuildings by viewModel.availableBuildings.collectAsState()
   val filteredData by viewModel.filteredData.collectAsState()
   var showDatePicker by remember { mutableStateOf(false) }
 
@@ -109,6 +112,22 @@ fun ClassroomQueryScreen(
         singleLine = true,
         leadingIcon = { Icon(Icons.Default.Search, null) },
       )
+    }
+
+    if (uiState is ClassroomUiState.Success && availableBuildings.isNotEmpty()) {
+      LazyRow(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+      ) {
+        items(availableBuildings) { building ->
+          FilterChip(
+            selected = selectedBuilding == building,
+            onClick = { viewModel.toggleBuilding(building) },
+            label = { Text(building) },
+          )
+        }
+      }
     }
 
     // 简单的图例

@@ -12,6 +12,8 @@ import cn.edu.ubaa.exam.examRouting
 import cn.edu.ubaa.schedule.scheduleRouting
 import cn.edu.ubaa.signin.SigninService
 import cn.edu.ubaa.signin.signinRouting
+import cn.edu.ubaa.spoc.GlobalSpocService
+import cn.edu.ubaa.spoc.spocRouting
 import cn.edu.ubaa.user.userRouting
 import io.github.cdimascio.dotenv.dotenv
 import io.ktor.http.*
@@ -80,7 +82,8 @@ fun Application.module() {
 
   val sessionManager = GlobalSessionManager.instance
   val bykcService = GlobalBykcService.instance
-  registerPerformanceGauges(sessionManager, bykcService)
+  val spocService = GlobalSpocService.instance
+  registerPerformanceGauges(sessionManager, bykcService, spocService)
 
   val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
   cleanupScope.launch {
@@ -90,13 +93,21 @@ fun Application.module() {
       val expiredPreLogin = sessionManager.cleanupExpiredPreLoginSessions()
       val expiredSigninClients = SigninService.cleanupExpiredClients()
       val expiredBykcClients = bykcService.cleanupExpiredClients()
-      if (expiredSessions + expiredPreLogin + expiredSigninClients + expiredBykcClients > 0) {
+      val expiredSpocClients = spocService.cleanupExpiredClients()
+      if (
+        expiredSessions +
+          expiredPreLogin +
+          expiredSigninClients +
+          expiredBykcClients +
+          expiredSpocClients > 0
+      ) {
         log.info(
-          "Cleanup removed sessions={}, prelogin={}, signinClients={}, bykcClients={}",
+          "Cleanup removed sessions={}, prelogin={}, signinClients={}, bykcClients={}, spocClients={}",
           expiredSessions,
           expiredPreLogin,
           expiredSigninClients,
           expiredBykcClients,
+          expiredSpocClients,
         )
       }
     }
@@ -106,6 +117,7 @@ fun Application.module() {
     cleanupScope.cancel()
     SigninService.closeAll()
     bykcService.clearCache()
+    spocService.clearCache()
     sessionManager.close()
   }
 
@@ -123,6 +135,7 @@ fun Application.module() {
       signinRouting()
       classroomRouting()
       evaluationRouting()
+      spocRouting()
     }
 
     get("/") { call.respondText("Ktor: ${Greeting().greet()}") }
@@ -133,6 +146,7 @@ fun Application.module() {
 private fun registerPerformanceGauges(
   sessionManager: cn.edu.ubaa.auth.SessionManager,
   bykcService: cn.edu.ubaa.bykc.BykcService,
+  spocService: cn.edu.ubaa.spoc.SpocService,
 ) {
   Gauge.builder("ubaa.sessions.active") { sessionManager.activeSessionCount().toDouble() }
     .register(appMicrometerRegistry)
@@ -141,5 +155,7 @@ private fun registerPerformanceGauges(
   Gauge.builder("ubaa.signin.cache") { SigninService.cacheSize().toDouble() }
     .register(appMicrometerRegistry)
   Gauge.builder("ubaa.bykc.cache") { bykcService.cacheSize().toDouble() }
+    .register(appMicrometerRegistry)
+  Gauge.builder("ubaa.spoc.cache") { spocService.cacheSize().toDouble() }
     .register(appMicrometerRegistry)
 }

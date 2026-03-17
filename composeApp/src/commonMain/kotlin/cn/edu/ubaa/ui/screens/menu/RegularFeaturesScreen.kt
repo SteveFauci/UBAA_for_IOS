@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Assignment
+import androidx.compose.material.icons.filled.AssignmentTurnedIn
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.School
@@ -32,6 +33,7 @@ fun RegularFeaturesScreen(
   onExamClick: () -> Unit,
   onBykcClick: () -> Unit,
   onClassroomClick: () -> Unit,
+  onSpocClick: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   val features =
@@ -60,6 +62,12 @@ fun RegularFeaturesScreen(
         description = "查询各校区空闲教室",
         icon = Icons.Default.MeetingRoom,
       ),
+      FeatureItem(
+        id = "spoc",
+        title = "SPOC作业",
+        description = "查看当前学期作业与提交状态",
+        icon = Icons.Default.AssignmentTurnedIn,
+      ),
     )
 
   Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
@@ -84,6 +92,7 @@ fun RegularFeaturesScreen(
               "exam" -> onExamClick()
               "bykc" -> onBykcClick()
               "classroom" -> onClassroomClick()
+              "spoc" -> onSpocClick()
             }
           },
         )

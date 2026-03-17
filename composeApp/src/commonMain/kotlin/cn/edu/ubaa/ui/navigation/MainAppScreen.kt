@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,6 +35,10 @@ import cn.edu.ubaa.ui.screens.schedule.ScheduleScreen
 import cn.edu.ubaa.ui.screens.schedule.ScheduleViewModel
 import cn.edu.ubaa.ui.screens.signin.SigninScreen
 import cn.edu.ubaa.ui.screens.signin.SigninViewModel
+import cn.edu.ubaa.ui.screens.spoc.SpocAssignmentDetailScreen
+import cn.edu.ubaa.ui.screens.spoc.SpocAssignmentsScreen
+import cn.edu.ubaa.ui.screens.spoc.SpocSortField
+import cn.edu.ubaa.ui.screens.spoc.SpocViewModel
 
 /** 应用程序所有的屏幕页面定义。 */
 enum class AppScreen {
@@ -53,6 +58,8 @@ enum class AppScreen {
   SIGNIN,
   CLASSROOM_QUERY,
   EVALUATION,
+  SPOC_ASSIGNMENTS,
+  SPOC_ASSIGNMENT_DETAIL,
 }
 
 /**
@@ -89,6 +96,8 @@ fun MainAppScreen(
     viewModel(key = "signin-${userData.schoolid}") { SigninViewModel() }
   val evaluationViewModel: EvaluationViewModel = viewModel { EvaluationViewModel() }
   val classroomViewModel: ClassroomViewModel = viewModel { ClassroomViewModel() }
+  val spocViewModel: SpocViewModel = viewModel(key = "spoc-${userData.schoolid}") { SpocViewModel() }
+  val spocUiState by spocViewModel.uiState.collectAsState()
   val bykcViewModel: BykcViewModel =
     viewModel(key = "bykc-${userData.schoolid}") { BykcViewModel() }
   val bykcCoursesState by bykcViewModel.coursesState.collectAsState()
@@ -98,6 +107,8 @@ fun MainAppScreen(
   var selectedCourse by remember { mutableStateOf<CourseClass?>(null) }
   var selectedBykcCourseId by remember { mutableStateOf<Long?>(null) }
   var showBykcIncludeExpired by remember { mutableStateOf(false) }
+  var selectedSpocAssignmentId by remember { mutableStateOf<String?>(null) }
+  var showSpocSortFilterDialog by remember { mutableStateOf(false) }
 
   /** 重置导航栈至指定根页面。 */
   fun setRoot(screen: AppScreen, tab: BottomNavTab) {
@@ -117,7 +128,9 @@ fun MainAppScreen(
           AppScreen.SCHEDULE,
           AppScreen.EXAM,
           AppScreen.COURSE_DETAIL,
-          AppScreen.CLASSROOM_QUERY -> BottomNavTab.REGULAR
+          AppScreen.CLASSROOM_QUERY,
+          AppScreen.SPOC_ASSIGNMENTS,
+          AppScreen.SPOC_ASSIGNMENT_DETAIL -> BottomNavTab.REGULAR
           AppScreen.ADVANCED,
           AppScreen.BYKC_HOME,
           AppScreen.BYKC_COURSES,
@@ -143,7 +156,9 @@ fun MainAppScreen(
           AppScreen.SCHEDULE,
           AppScreen.EXAM,
           AppScreen.COURSE_DETAIL,
-          AppScreen.CLASSROOM_QUERY -> BottomNavTab.REGULAR
+          AppScreen.CLASSROOM_QUERY,
+          AppScreen.SPOC_ASSIGNMENTS,
+          AppScreen.SPOC_ASSIGNMENT_DETAIL -> BottomNavTab.REGULAR
           AppScreen.ADVANCED,
           AppScreen.BYKC_HOME,
           AppScreen.BYKC_COURSES,
@@ -185,6 +200,8 @@ fun MainAppScreen(
       AppScreen.SIGNIN -> "课程签到"
       AppScreen.CLASSROOM_QUERY -> "空教室查询"
       AppScreen.EVALUATION -> "自动评教"
+      AppScreen.SPOC_ASSIGNMENTS -> "SPOC作业"
+      AppScreen.SPOC_ASSIGNMENT_DETAIL -> "作业详情"
     }
 
   Box(modifier = modifier.fillMaxSize()) {
@@ -239,6 +256,10 @@ fun MainAppScreen(
                 },
               )
             }
+          } else if (currentScreen == AppScreen.SPOC_ASSIGNMENTS) {
+            IconButton(onClick = { showSpocSortFilterDialog = true }) {
+              Icon(Icons.Default.Tune, contentDescription = "排序和筛选")
+            }
           }
         },
       )
@@ -258,6 +279,7 @@ fun MainAppScreen(
               onExamClick = { navigateTo(AppScreen.EXAM) },
               onBykcClick = { navigateTo(AppScreen.BYKC_HOME) },
               onClassroomClick = { navigateTo(AppScreen.CLASSROOM_QUERY) },
+              onSpocClick = { navigateTo(AppScreen.SPOC_ASSIGNMENTS) },
             )
           AppScreen.ADVANCED ->
             AdvancedFeaturesScreen(
@@ -353,6 +375,24 @@ fun MainAppScreen(
           AppScreen.CLASSROOM_QUERY ->
             ClassroomQueryScreen(viewModel = classroomViewModel, onBackClick = { navigateBack() })
           AppScreen.EVALUATION -> EvaluationScreen(viewModel = evaluationViewModel)
+          AppScreen.SPOC_ASSIGNMENTS ->
+            SpocAssignmentsScreen(
+              viewModel = spocViewModel,
+              onAssignmentClick = {
+                selectedSpocAssignmentId = it.assignmentId
+                spocViewModel.loadAssignmentDetail(it.assignmentId)
+                navigateTo(AppScreen.SPOC_ASSIGNMENT_DETAIL)
+              },
+            )
+          AppScreen.SPOC_ASSIGNMENT_DETAIL ->
+            SpocAssignmentDetailScreen(
+              viewModel = spocViewModel,
+              onRetry = {
+                selectedSpocAssignmentId?.let { assignmentId ->
+                  spocViewModel.loadAssignmentDetail(assignmentId)
+                }
+              },
+            )
         }
       }
 
@@ -371,6 +411,8 @@ fun MainAppScreen(
             AppScreen.BYKC_STATISTICS,
             AppScreen.CLASSROOM_QUERY,
             AppScreen.EVALUATION,
+            AppScreen.SPOC_ASSIGNMENTS,
+            AppScreen.SPOC_ASSIGNMENT_DETAIL,
           )
       ) {
         BottomNavigation(
@@ -416,5 +458,126 @@ fun MainAppScreen(
         )
       }
     }
+
+    if (showSpocSortFilterDialog && currentScreen == AppScreen.SPOC_ASSIGNMENTS) {
+      SpocSortFilterDialog(
+        sortField = spocUiState.sortField,
+        sortAscending = spocUiState.sortAscending,
+        showExpired = spocUiState.showExpired,
+        showOnlyUnsubmitted = spocUiState.showOnlyUnsubmitted,
+        onDismiss = { showSpocSortFilterDialog = false },
+        onApply = { sortField, sortAscending, showExpired, showOnlyUnsubmitted ->
+          spocViewModel.setSortField(sortField)
+          if (spocUiState.sortAscending != sortAscending) {
+            spocViewModel.toggleSortDirection()
+          }
+          spocViewModel.setShowExpired(showExpired)
+          spocViewModel.setShowOnlyUnsubmitted(showOnlyUnsubmitted)
+          showSpocSortFilterDialog = false
+        },
+      )
+    }
+  }
+}
+
+@Composable
+private fun SpocSortFilterDialog(
+  sortField: SpocSortField,
+  sortAscending: Boolean,
+  showExpired: Boolean,
+  showOnlyUnsubmitted: Boolean,
+  onDismiss: () -> Unit,
+  onApply: (SpocSortField, Boolean, Boolean, Boolean) -> Unit,
+) {
+  var selectedSortField by remember(sortField) { mutableStateOf(sortField) }
+  var selectedSortAscending by remember(sortAscending) { mutableStateOf(sortAscending) }
+  var selectedShowExpired by remember(showExpired) { mutableStateOf(showExpired) }
+  var selectedShowOnlyUnsubmitted by remember(showOnlyUnsubmitted) {
+    mutableStateOf(showOnlyUnsubmitted)
+  }
+
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = { Text("排序和筛选") },
+    text = {
+      Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("排序字段", style = MaterialTheme.typography.titleSmall)
+        SpocDialogOptionRow(
+          label = "按截止时间",
+          selected = selectedSortField == SpocSortField.DUE_TIME,
+          onClick = { selectedSortField = SpocSortField.DUE_TIME },
+        )
+        SpocDialogOptionRow(
+          label = "按开始时间",
+          selected = selectedSortField == SpocSortField.START_TIME,
+          onClick = { selectedSortField = SpocSortField.START_TIME },
+        )
+
+        Text("排序方向", style = MaterialTheme.typography.titleSmall)
+        SpocDialogOptionRow(
+          label = "升序",
+          selected = selectedSortAscending,
+          onClick = { selectedSortAscending = true },
+        )
+        SpocDialogOptionRow(
+          label = "降序",
+          selected = !selectedSortAscending,
+          onClick = { selectedSortAscending = false },
+        )
+
+        Text("筛选条件", style = MaterialTheme.typography.titleSmall)
+        SpocCheckboxRow(
+          label = "仅显示未提交",
+          checked = selectedShowOnlyUnsubmitted,
+          onCheckedChange = { selectedShowOnlyUnsubmitted = it },
+        )
+        SpocCheckboxRow(
+          label = "显示已截止",
+          checked = selectedShowExpired,
+          onCheckedChange = { selectedShowExpired = it },
+        )
+      }
+    },
+    confirmButton = {
+      TextButton(
+        onClick = {
+          onApply(
+            selectedSortField,
+            selectedSortAscending,
+            selectedShowExpired,
+            selectedShowOnlyUnsubmitted,
+          )
+        }
+      ) {
+        Text("应用")
+      }
+    },
+    dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+  )
+}
+
+@Composable
+private fun SpocDialogOptionRow(label: String, selected: Boolean, onClick: () -> Unit) {
+  Row(
+    modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+    verticalAlignment = Alignment.CenterVertically,
+  ) {
+    RadioButton(selected = selected, onClick = onClick)
+    Text(text = label, style = MaterialTheme.typography.bodyMedium)
+  }
+}
+
+@Composable
+private fun SpocCheckboxRow(
+  label: String,
+  checked: Boolean,
+  onCheckedChange: (Boolean) -> Unit,
+) {
+  Row(
+    modifier = Modifier.fillMaxWidth().clickable(onClick = { onCheckedChange(!checked) }),
+    verticalAlignment = Alignment.CenterVertically,
+  ) {
+    Checkbox(checked = checked, onCheckedChange = onCheckedChange)
+    Text(text = label, style = MaterialTheme.typography.bodyMedium)
   }
 }

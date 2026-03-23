@@ -55,7 +55,7 @@ class ApiClient(private val engine: HttpClientEngine? = null) {
           loadTokens { cachedTokens }
           refreshTokens {
             val expiredTokens = oldTokens ?: return@refreshTokens null
-            val refreshToken = expiredTokens.refreshToken ?: return@refreshTokens null
+            val refreshToken = expiredTokens.refreshToken
             refreshMutex.withLock {
               val latestTokens = cachedTokens
               if (latestTokens != null && latestTokens.refreshToken != expiredTokens.refreshToken) {

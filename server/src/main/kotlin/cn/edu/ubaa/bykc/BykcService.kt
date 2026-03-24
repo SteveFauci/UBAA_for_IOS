@@ -108,6 +108,8 @@ class BykcService(
                 courseCurrentCount = course.courseCurrentCount ?: 0,
                 category = course.courseNewKind1?.kindName,
                 subCategory = course.courseNewKind2?.kindName,
+                hasSignPoints =
+                    parseSignConfig(course.courseSignConfig)?.signPoints?.isNotEmpty() == true,
                 status = status.displayName,
                 selected = course.selected ?: false,
                 courseDesc = course.courseDesc,
@@ -142,6 +144,8 @@ class BykcService(
               courseCurrentCount = course.courseCurrentCount ?: 0,
               category = course.courseNewKind1?.kindName,
               subCategory = course.courseNewKind2?.kindName,
+              hasSignPoints =
+                  parseSignConfig(course.courseSignConfig)?.signPoints?.isNotEmpty() == true,
               status = status.displayName,
               selected = course.selected ?: false,
               courseDesc = course.courseDesc,
@@ -413,10 +417,10 @@ class BykcService(
       when {
         cs != null && now.isAfter(cs) -> BykcCourseStatusEnum.EXPIRED
         course.selected == true -> BykcCourseStatusEnum.SELECTED
-        ss != null && now.isBefore(ss) -> BykcCourseStatusEnum.PREVIEW
         se != null && now.isAfter(se) -> BykcCourseStatusEnum.ENDED
         course.courseCurrentCount != null && course.courseCurrentCount >= course.courseMaxCount ->
             BykcCourseStatusEnum.FULL
+        ss != null && now.isBefore(ss) -> BykcCourseStatusEnum.PREVIEW
         else -> BykcCourseStatusEnum.AVAILABLE
       }
     } catch (_: Exception) {

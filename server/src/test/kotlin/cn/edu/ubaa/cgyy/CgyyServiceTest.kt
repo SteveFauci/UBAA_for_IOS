@@ -114,6 +114,48 @@ class CgyyServiceTest {
   }
 
   @Test
+  fun `getOrders retries with fresh client after transient gateway failure`() = runTest {
+    var closedFirstClient = false
+    var clientCreations = 0
+    val service =
+        CgyyService(
+            clientProvider = {
+              clientCreations++
+              if (clientCreations == 1) {
+                object : FakeGateway() {
+                  override suspend fun getMineOrders(page: Int, size: Int): JsonObject {
+                    throw CgyyException("temporary failure", "cgyy_error")
+                  }
+
+                  override fun close() {
+                    closedFirstClient = true
+                  }
+                }
+              } else {
+                object : FakeGateway() {
+                  override suspend fun getMineOrders(page: Int, size: Int): JsonObject {
+                    return buildJsonObject {
+                      put("totalElements", 1)
+                      put("totalPages", 1)
+                      put("size", size)
+                      put("number", page)
+                      putJsonArray("content") { add(buildJsonObject { put("id", 9) }) }
+                    }
+                  }
+                }
+              }
+            }
+        )
+
+    val orders = service.getOrders("2418", page = 0, size = 20)
+
+    assertEquals(2, clientCreations)
+    assertTrue(closedFirstClient)
+    assertEquals(1, orders.content.size)
+    assertEquals(9, orders.content.first().id)
+  }
+
+  @Test
   fun `status 2 slot is not treated as reservable`() = runTest {
     val gateway =
         object : FakeGateway() {

@@ -27,6 +27,7 @@ object BykcCourseStatus {
  * @property courseCurrentCount 当前已报名人数。
  * @property category 课程大类。
  * @property subCategory 课程小类。
+ * @property hasSignPoints 是否存在签到地点配置。
  * @property status 课程当前状态描述（如“可选”、“已选”）。
  * @property selected 当前用户是否已选该课。
  * @property courseDesc 课程简介。
@@ -45,6 +46,7 @@ data class BykcCourseDto(
     val courseCurrentCount: Int = 0,
     val category: String? = null,
     val subCategory: String? = null,
+    val hasSignPoints: Boolean = false,
     val status: String,
     val selected: Boolean = false,
     val courseDesc: String? = null,

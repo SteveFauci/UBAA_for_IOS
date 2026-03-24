@@ -133,14 +133,16 @@ class CgyyService(
   }
 
   suspend fun getOrders(username: String, page: Int, size: Int): CgyyOrdersPageResponse {
-    val data = getClient(username).getMineOrders(page, size)
-    return CgyyOrdersPageResponse(
-        content = data["content"]?.jsonArray?.map { mapOrder(it.jsonObject) } ?: emptyList(),
-        totalElements = data["totalElements"]?.jsonPrimitive?.intOrNull ?: 0,
-        totalPages = data["totalPages"]?.jsonPrimitive?.intOrNull ?: 0,
-        size = data["size"]?.jsonPrimitive?.intOrNull ?: size,
-        number = data["number"]?.jsonPrimitive?.intOrNull ?: page,
-    )
+    return withFreshClientRetry(username) { client ->
+      val data = client.getMineOrders(page, size)
+      CgyyOrdersPageResponse(
+          content = data["content"]?.jsonArray?.map { mapOrder(it.jsonObject) } ?: emptyList(),
+          totalElements = data["totalElements"]?.jsonPrimitive?.intOrNull ?: 0,
+          totalPages = data["totalPages"]?.jsonPrimitive?.intOrNull ?: 0,
+          size = data["size"]?.jsonPrimitive?.intOrNull ?: size,
+          number = data["number"]?.jsonPrimitive?.intOrNull ?: page,
+      )
+    }
   }
 
   suspend fun getOrderDetail(username: String, orderId: Int): CgyyOrderDto {
@@ -186,6 +188,25 @@ class CgyyService(
           existing?.also { it.lastAccessAt = now } ?: CachedClient(clientProvider(username), now)
         }!!
         .client
+  }
+
+  private suspend fun <T> withFreshClientRetry(
+      username: String,
+      block: suspend (CgyyGateway) -> T,
+  ): T {
+    return try {
+      block(getClient(username))
+    } catch (e: CgyyException) {
+      if (e.code != "unauthenticated" && e.code != "cgyy_error") {
+        throw e
+      }
+      discardClient(username)
+      block(getClient(username))
+    }
+  }
+
+  private fun discardClient(username: String) {
+    clientCache.remove(username)?.client?.close()
   }
 
   private fun validateRequest(request: CgyyReservationSubmitRequest) {

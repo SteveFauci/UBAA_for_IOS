@@ -54,6 +54,26 @@ fun BykcCourseDetailScreen(
       }
     }
     course != null -> {
+      val isCourseFull =
+          remember(course.courseCurrentCount, course.courseMaxCount, course.status) {
+            val fullByCount =
+                course.courseMaxCount > 0 && course.courseCurrentCount >= course.courseMaxCount
+            fullByCount || course.status == BykcCourseStatus.FULL
+          }
+      val canSelectCourse =
+          !operationInProgress && !isCourseFull && course.status == BykcCourseStatus.AVAILABLE
+      val selectDisabledReason =
+          remember(canSelectCourse, operationInProgress, isCourseFull, course.status) {
+            when {
+              canSelectCourse || operationInProgress -> null
+              isCourseFull || course.status == BykcCourseStatus.FULL -> "该课程人数已满，当前不可选择。"
+              course.status == BykcCourseStatus.ENDED -> "该课程已结束，当前不可选择。"
+              course.status == BykcCourseStatus.EXPIRED -> "该课程已过期，当前不可选择。"
+              course.status != BykcCourseStatus.AVAILABLE -> "该课程当前状态不可选择。"
+              else -> null
+            }
+          }
+
       var now by remember { mutableStateOf<kotlin.time.Instant>(Clock.System.now()) }
       LaunchedEffect(Unit) {
         while (true) {
@@ -302,11 +322,20 @@ fun BykcCourseDetailScreen(
               Button(
                   onClick = onSelectClick,
                   modifier = Modifier.fillMaxWidth(),
-                  enabled = !operationInProgress && course.status == BykcCourseStatus.AVAILABLE,
+                  enabled = canSelectCourse,
               ) {
                 Icon(Icons.Default.Check, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("选择课程")
+              }
+              selectDisabledReason?.let { reason ->
+                Text(
+                    text = reason,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                )
               }
             }
           }

@@ -211,6 +211,7 @@ class BykcModelsTest {
             courseCurrentCount = 50,
             category = "博雅课程",
             subCategory = "德育",
+            hasSignPoints = true,
             status = BykcCourseStatus.AVAILABLE,
             selected = false,
             courseDesc = "课程描述",
@@ -223,6 +224,7 @@ class BykcModelsTest {
     assertEquals(dto.courseName, deserialized.courseName)
     assertEquals(dto.status, deserialized.status)
     assertEquals(dto.category, deserialized.category)
+    assertEquals(dto.hasSignPoints, deserialized.hasSignPoints)
   }
 
   @Test

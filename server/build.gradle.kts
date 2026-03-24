@@ -5,7 +5,6 @@ plugins {
   alias(libs.plugins.kotlinJvm)
   alias(libs.plugins.ktor)
   alias(libs.plugins.kotlinSerialization)
-  alias(libs.plugins.graalvm)
   application
 }
 
@@ -60,47 +59,9 @@ dependencies {
   implementation(libs.ktor.server.auth)
   implementation(libs.ktor.server.auth.jwt) // JWT 认证
   implementation(libs.java.jwt)
-  implementation(libs.sqlite.jdbc) // 会话持久化数据库
   implementation(libs.redis.kotlin) // Redis 缓存支持
 
   testImplementation(libs.ktor.serverTestHost)
   testImplementation(libs.ktor.client.mock)
   testImplementation(libs.kotlin.testJunit)
-}
-
-// GraalVM 配置：生成高性能的原生可执行文件
-graalvmNative {
-  binaries {
-    named("main") {
-      imageName.set("ubaa-server")
-      mainClass.set("cn.edu.ubaa.ApplicationKt")
-      buildArgs.add("--no-fallback")
-      buildArgs.add("--initialize-at-build-time=kotlin.DeprecationLevel")
-      // buildArgs.add("--initialize-at-build-time=io.netty,ch.qos.logback,org.slf4j,org.bouncycastle")
-
-      // Fix for GraalVM Native Image build errors (FileDescriptor/DirectByteBuffer)
-      buildArgs.add("--initialize-at-run-time=io.netty.util.internal.CleanerJava9")
-      buildArgs.add("--initialize-at-run-time=io.netty.buffer.AbstractByteBufAllocator")
-      buildArgs.add("--initialize-at-run-time=io.netty.buffer.UnpooledByteBufAllocator")
-      buildArgs.add("--initialize-at-run-time=io.netty.buffer.ByteBufUtil")
-      buildArgs.add("--initialize-at-run-time=io.netty.buffer.ByteBufAllocator")
-      buildArgs.add("--initialize-at-run-time=io.netty.buffer.PooledByteBufAllocator")
-      buildArgs.add("--initialize-at-run-time=io.netty.buffer.AdaptiveByteBufAllocator")
-      buildArgs.add("--initialize-at-run-time=io.netty.util.internal.logging.Log4JLogger")
-      buildArgs.add("--initialize-at-run-time=io.netty.util.internal.logging.Slf4JLoggerFactory")
-      buildArgs.add("--initialize-at-run-time=io.netty.channel.DefaultFileRegion")
-      buildArgs.add("--initialize-at-run-time=ch.qos.logback.classic.LoggerContext")
-      buildArgs.add("--initialize-at-run-time=ch.qos.logback.core.status.StatusBase")
-      buildArgs.add("--initialize-at-run-time=ch.qos.logback.core.util.StatusPrinter")
-      buildArgs.add("--initialize-at-run-time=ch.qos.logback.core.spi.AppenderAttachableImpl")
-      buildArgs.add("--initialize-at-run-time=org.slf4j.LoggerFactory")
-
-      if (project.hasProperty("static-musl")) {
-        buildArgs.add("--static")
-        buildArgs.add("--libc=musl")
-      }
-    }
-  }
-  metadataRepository { enabled.set(true) }
-  agent { defaultMode.set("standard") }
 }

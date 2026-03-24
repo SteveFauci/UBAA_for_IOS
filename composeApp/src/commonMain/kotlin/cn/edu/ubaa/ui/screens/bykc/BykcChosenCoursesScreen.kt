@@ -2,6 +2,8 @@ package cn.edu.ubaa.ui.screens.bykc
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -102,7 +104,7 @@ fun BykcChosenCoursesScreen(
   }
 }
 
-@OptIn(ExperimentalTime::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalTime::class)
 @Composable
 fun BykcChosenCourseCard(
     course: BykcChosenCourseDto,
@@ -141,20 +143,23 @@ fun BykcChosenCourseCard(
       }
 
       // 分类标签
-      if (course.category != null || course.subCategory != null) {
+      val hasSignPoints = course.signConfig?.signPoints?.isNotEmpty() == true
+      if (course.subCategory != null || hasSignPoints) {
         Spacer(modifier = Modifier.height(8.dp))
-        Row {
-          course.category?.let { category ->
-            SuggestionChip(
-                onClick = {},
-                label = { Text(category, style = MaterialTheme.typography.labelSmall) },
-                modifier = Modifier.padding(end = 4.dp),
-            )
-          }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
           course.subCategory?.let { subCategory ->
             SuggestionChip(
                 onClick = {},
                 label = { Text(subCategory, style = MaterialTheme.typography.labelSmall) },
+            )
+          }
+          if (hasSignPoints) {
+            SuggestionChip(
+                onClick = {},
+                label = { Text("自主签到", style = MaterialTheme.typography.labelSmall) },
             )
           }
         }

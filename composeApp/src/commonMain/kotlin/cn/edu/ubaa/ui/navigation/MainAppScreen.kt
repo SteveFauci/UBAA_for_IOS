@@ -45,6 +45,11 @@ import cn.edu.ubaa.ui.screens.spoc.SpocAssignmentDetailScreen
 import cn.edu.ubaa.ui.screens.spoc.SpocAssignmentsScreen
 import cn.edu.ubaa.ui.screens.spoc.SpocSortField
 import cn.edu.ubaa.ui.screens.spoc.SpocViewModel
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
+import kotlinx.coroutines.delay
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 /** 应用程序所有的屏幕页面定义。 */
 enum class AppScreen {
@@ -80,7 +85,7 @@ enum class AppScreen {
  * @param userInfo 登录用户的详细信息。
  * @param onLogoutClick 注销回调。
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalTime::class)
 @Composable
 fun MainAppScreen(
     userData: UserData,
@@ -93,6 +98,16 @@ fun MainAppScreen(
 
   var selectedBottomTab by remember { mutableStateOf(BottomNavTab.HOME) }
   var showSidebar by remember { mutableStateOf(false) }
+  val homeSnackbarHostState = remember { SnackbarHostState() }
+  val homeNow by
+      produceState(
+          initialValue = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+      ) {
+        while (true) {
+          delay(60_000)
+          value = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+        }
+      }
 
   // 初始化各模块 ViewModel
   val scheduleViewModel: ScheduleViewModel = viewModel { ScheduleViewModel() }
@@ -105,9 +120,11 @@ fun MainAppScreen(
 
   val signinViewModel: SigninViewModel =
       viewModel(key = "signin-${userData.schoolid}") { SigninViewModel() }
+  val signinUiState by signinViewModel.uiState.collectAsState()
   val evaluationViewModel: EvaluationViewModel = viewModel { EvaluationViewModel() }
   val cgyyViewModel: CgyyViewModel =
       viewModel(key = "cgyy-${userData.schoolid}") { CgyyViewModel() }
+  val cgyyUiState by cgyyViewModel.uiState.collectAsState()
   val classroomViewModel: ClassroomViewModel = viewModel { ClassroomViewModel() }
   val spocViewModel: SpocViewModel =
       viewModel(key = "spoc-${userData.schoolid}") { SpocViewModel() }
@@ -121,8 +138,45 @@ fun MainAppScreen(
   var selectedCourse by remember { mutableStateOf<CourseClass?>(null) }
   var selectedBykcCourseId by remember { mutableStateOf<Long?>(null) }
   var showBykcIncludeExpired by remember { mutableStateOf(false) }
+  var hideBykcFullCourses by remember { mutableStateOf(false) }
   var selectedSpocAssignmentId by remember { mutableStateOf<String?>(null) }
   var showSpocSortFilterDialog by remember { mutableStateOf(false) }
+  val homeTodoItems =
+      remember(
+          bykcChosenState.courses,
+          spocUiState.assignmentsResponse,
+          cgyyUiState.orders.content,
+          signinUiState.classes,
+          homeNow,
+      ) {
+        buildHomeTodoItems(
+            bykcCourses = bykcChosenState.courses,
+            spocAssignments = spocUiState.assignmentsResponse?.assignments.orEmpty(),
+            cgyyOrders = cgyyUiState.orders.content,
+            signinClasses = signinUiState.classes,
+            now = homeNow,
+        )
+      }
+  val homeTodoLoading =
+      bykcChosenState.isLoading ||
+          spocUiState.isLoading ||
+          spocUiState.isRefreshing ||
+          signinUiState.isLoading ||
+          cgyyUiState.isOrdersLoading
+  val homeTodoFailedSources = buildList {
+    if (bykcChosenState.error != null) add(HomeTodoSource.BYKC)
+    if (spocUiState.error != null) add(HomeTodoSource.SPOC)
+    if (cgyyUiState.ordersError != null) add(HomeTodoSource.CGYY)
+    if (signinUiState.error != null) add(HomeTodoSource.SIGNIN)
+  }
+
+  fun refreshHomeData() {
+    scheduleViewModel.loadTodaySchedule()
+    bykcViewModel.loadChosenCourses()
+    spocViewModel.loadAssignments(refresh = true)
+    signinViewModel.loadTodayClasses()
+    cgyyViewModel.loadOrders()
+  }
 
   /** 重置导航栈至指定根页面。 */
   fun setRoot(screen: AppScreen, tab: BottomNavTab) {
@@ -203,6 +257,48 @@ fun MainAppScreen(
             else -> BottomNavTab.HOME
           }
       showSidebar = false
+    }
+  }
+
+  fun handleHomeTodoClick(todoItem: HomeTodoItem) {
+    when (val action = todoItem.action) {
+      is HomeTodoAction.OpenBykcCourse -> {
+        selectedBykcCourseId = action.courseId
+        bykcViewModel.loadCourseDetail(action.courseId)
+        navigateTo(AppScreen.BYKC_DETAIL)
+      }
+      is HomeTodoAction.OpenSpocAssignment -> {
+        selectedSpocAssignmentId = action.assignmentId
+        spocViewModel.loadAssignmentDetail(action.assignmentId)
+        navigateTo(AppScreen.SPOC_ASSIGNMENT_DETAIL)
+      }
+      HomeTodoAction.OpenCgyyOrders -> {
+        cgyyViewModel.ensureOrdersLoaded()
+        navigateTo(AppScreen.CGYY_ORDERS)
+      }
+      is HomeTodoAction.SigninCourse -> signinViewModel.performSignin(action.courseId)
+    }
+  }
+
+  var previousScreen by remember { mutableStateOf<AppScreen?>(null) }
+
+  LaunchedEffect(currentScreen) {
+    val isReturningToHome =
+        currentScreen == AppScreen.HOME &&
+            previousScreen != null &&
+            previousScreen != AppScreen.HOME
+    if (isReturningToHome) {
+      refreshHomeData()
+    }
+    previousScreen = currentScreen
+  }
+
+  LaunchedEffect(currentScreen, signinUiState.signinResult) {
+    if (currentScreen == AppScreen.HOME) {
+      signinUiState.signinResult?.let { message ->
+        homeSnackbarHostState.showSnackbar(message)
+        signinViewModel.clearSigninResult()
+      }
     }
   }
 
@@ -300,7 +396,15 @@ fun MainAppScreen(
                   todayClasses = todayScheduleState.todayClasses,
                   isLoading = todayScheduleState.isLoading,
                   error = todayScheduleState.error,
-                  onRefresh = { scheduleViewModel.loadTodaySchedule() },
+                  todoItems = homeTodoItems,
+                  todoLoading = homeTodoLoading,
+                  todoFailedSources = homeTodoFailedSources,
+                  signingTodoId =
+                      signinUiState.signingInCourseId?.let { courseId -> "signin:$courseId" },
+                  onRetrySchedule = { scheduleViewModel.loadTodaySchedule() },
+                  onRefresh = { refreshHomeData() },
+                  onTodoClick = { todoItem -> handleHomeTodoClick(todoItem) },
+                  onSigninTodoClick = { courseId -> signinViewModel.performSignin(courseId) },
               )
           AppScreen.REGULAR ->
               RegularFeaturesScreen(
@@ -353,12 +457,14 @@ fun MainAppScreen(
                   isLoading = bykcCoursesState.isLoading,
                   isLoadingMore = bykcCoursesState.isLoadingMore,
                   hasMorePages = bykcCoursesState.hasMorePages,
+                  hideFullCourses = hideBykcFullCourses,
                   error = bykcCoursesState.error,
                   onCourseClick = {
                     selectedBykcCourseId = it.id
                     bykcViewModel.loadCourseDetail(it.id)
                     navigateTo(AppScreen.BYKC_DETAIL)
                   },
+                  onHideFullCoursesChange = { hideBykcFullCourses = it },
                   onRefresh = {
                     bykcViewModel.loadCourses(includeExpired = showBykcIncludeExpired)
                   },
@@ -517,6 +623,14 @@ fun MainAppScreen(
             modifier = Modifier.align(Alignment.CenterStart),
         )
       }
+    }
+
+    if (currentScreen == AppScreen.HOME) {
+      SnackbarHost(
+          hostState = homeSnackbarHostState,
+          modifier =
+              Modifier.align(Alignment.BottomCenter).padding(horizontal = 16.dp, vertical = 88.dp),
+      )
     }
 
     if (showSpocSortFilterDialog && currentScreen == AppScreen.SPOC_ASSIGNMENTS) {

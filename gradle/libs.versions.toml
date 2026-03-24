@@ -1,37 +1,35 @@
 [versions]
-agp = "8.13.0"
+agp = "9.1.0"
 android-compileSdk = "36"
 android-minSdk = "24"
 android-targetSdk = "36"
-androidx-activity = "1.11.0"
+androidx-activity = "1.13.0"
 androidx-appcompat = "1.7.1"
-androidx-core = "1.17.0"
+androidx-core = "1.18.0"
 androidx-espresso = "3.7.0"
-androidx-lifecycle = "2.9.6"
+androidx-lifecycle = "2.10.0"
 androidx-testExt = "1.3.0"
-composeHotReload = "1.0.0-beta07"
-composeMultiplatform = "1.9.3"
+composeHotReload = "1.0.0"
+composeMultiplatform = "1.10.3"
 junit = "4.13.2"
-kotlin = "2.3.0"
+kotlin = "2.3.20"
 kotlinx-coroutines = "1.10.2"
-kotlinx-serialization = "1.9.0"
+kotlinx-serialization = "1.10.0"
 kotlinx-datetime = "0.7.1"
-ktor = "3.3.3"
-logback = "1.5.18"
-jsoup = "1.17.2"
-kamel = "1.0.8"
-coil3 = "3.1.0"
-bouncycastle = "1.77"
-java-jwt = "4.4.0"
-sqlite-jdbc = "3.45.3.0"
-multiplatform-settings = "1.1.1"
-graalvm = "0.10.5"
-buildkonfig = "0.15.2"
-dotenv = "6.5.0"
-kover = "0.9.1"
-micrometer = "1.14.2"
+ktor = "3.4.1"
+logback = "1.5.32"
+jsoup = "1.22.1"
+kamel = "1.0.9"
+coil3 = "3.4.0"
+bouncycastle = "1.83"
+java-jwt = "4.5.1"
+multiplatform-settings = "1.3.0"
+buildkonfig = "0.17.1"
+dotenv = "6.5.1"
+kover = "0.9.7"
+micrometer = "1.16.4"
 redis = "7.2.1.RELEASE"
-spotless = "8.3.0"
+spotless = "8.4.0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -72,7 +70,6 @@ coil3-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil3
 coil3-network-ktor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil3" }
 bouncycastle = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
 java-jwt = { module = "com.auth0:java-jwt", version.ref = "java-jwt" }
-sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc" }
 multiplatform-settings = { module = "com.russhwolf:multiplatform-settings", version.ref = "multiplatform-settings" }
 multiplatform-settings-no-arg = { module = "com.russhwolf:multiplatform-settings-no-arg", version.ref = "multiplatform-settings" }
 multiplatform-settings-test = { module = "com.russhwolf:multiplatform-settings-test", version.ref = "multiplatform-settings" }
@@ -96,7 +93,6 @@ kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
-graalvm = { id = "org.graalvm.buildtools.native", version.ref = "graalvm" }
 buildkonfig = { id = "com.codingfeline.buildkonfig", version.ref = "buildkonfig" }
 kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }

@@ -17,8 +17,6 @@ plugins {
   alias(libs.plugins.composeCompiler) apply false
   // Kotlin JVM 插件，用于纯 Java/Kotlin 后端或工具库
   alias(libs.plugins.kotlinJvm) apply false
-  // Kotlin Android 插件
-  alias(libs.plugins.kotlinAndroid) apply false
   // Kotlin Multiplatform 插件，用于跨平台共享代码
   alias(libs.plugins.kotlinMultiplatform) apply false
   // BuildKonfig 插件，用于在构建时生成配置代码

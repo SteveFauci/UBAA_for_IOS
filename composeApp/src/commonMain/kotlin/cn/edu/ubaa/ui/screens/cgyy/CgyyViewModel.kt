@@ -23,54 +23,54 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
 data class CgyyReservationSummary(
-    val siteLabel: String,
-    val reservationDate: String,
-    val spaceName: String,
-    val slotLabels: List<String>,
+        val siteLabel: String,
+        val reservationDate: String,
+        val spaceName: String,
+        val slotLabels: List<String>,
 )
 
 data class CgyyUiState(
-    val isInitialLoading: Boolean = false,
-    val isDayInfoLoading: Boolean = false,
-    val isSubmitting: Boolean = false,
-    val isOrdersLoading: Boolean = false,
-    val isLockCodeLoading: Boolean = false,
-    val sites: List<CgyyVenueSiteDto> = emptyList(),
-    val purposeTypes: List<CgyyPurposeTypeDto> = emptyList(),
-    val dayInfo: CgyyDayInfoResponse? = null,
-    val selectedCampus: String = "",
-    val reserveSearchQuery: String = "",
-    val selectedSiteId: Int? = null,
-    val selectedDate: String = "",
-    val selections: List<CgyyReservationSelectionDto> = emptyList(),
-    val reservationSummary: CgyyReservationSummary? = null,
-    val phone: String = "",
-    val theme: String = "",
-    val purposeType: Int? = null,
-    val joinerNum: String = "1",
-    val activityContent: String = "",
-    val joiners: String = "",
-    val isPhilosophySocialSciences: Boolean = false,
-    val isOffSchoolJoiner: Boolean = false,
-    val hasTriedSubmitReservation: Boolean = false,
-    val orders: CgyyOrdersPageResponse = CgyyOrdersPageResponse(),
-    val lockCode: CgyyLockCodeResponse? = null,
-    val initialError: String? = null,
-    val dayInfoError: String? = null,
-    val ordersError: String? = null,
-    val lockCodeError: String? = null,
-    val actionMessage: String? = null,
+        val isInitialLoading: Boolean = false,
+        val isDayInfoLoading: Boolean = false,
+        val isSubmitting: Boolean = false,
+        val isOrdersLoading: Boolean = false,
+        val isLockCodeLoading: Boolean = false,
+        val sites: List<CgyyVenueSiteDto> = emptyList(),
+        val purposeTypes: List<CgyyPurposeTypeDto> = emptyList(),
+        val dayInfo: CgyyDayInfoResponse? = null,
+        val selectedCampus: String = "",
+        val reserveSearchQuery: String = "",
+        val selectedSiteId: Int? = null,
+        val selectedDate: String = "",
+        val selections: List<CgyyReservationSelectionDto> = emptyList(),
+        val reservationSummary: CgyyReservationSummary? = null,
+        val phone: String = "",
+        val theme: String = "",
+        val purposeType: Int? = null,
+        val joinerNum: String = "1",
+        val activityContent: String = "",
+        val joiners: String = "",
+        val isPhilosophySocialSciences: Boolean = false,
+        val isOffSchoolJoiner: Boolean = false,
+        val hasTriedSubmitReservation: Boolean = false,
+        val orders: CgyyOrdersPageResponse = CgyyOrdersPageResponse(),
+        val lockCode: CgyyLockCodeResponse? = null,
+        val initialError: String? = null,
+        val dayInfoError: String? = null,
+        val ordersError: String? = null,
+        val lockCodeError: String? = null,
+        val actionMessage: String? = null,
 )
 
 @OptIn(ExperimentalTime::class)
 class CgyyViewModel(
-    private val cgyyApi: CgyyApi = CgyyApi(),
-    private val currentDateProvider: () -> String = {
-      val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-      val month = (now.month.ordinal + 1).toString().padStart(2, '0')
-      val day = now.day.toString().padStart(2, '0')
-      "${now.year}-$month-$day"
-    },
+        private val cgyyApi: CgyyApi = CgyyApi(),
+        private val currentDateProvider: () -> String = {
+          val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+          val month = (now.month.ordinal + 1).toString().padStart(2, '0')
+          val day = now.day.toString().padStart(2, '0')
+          "${now.year}-$month-$day"
+        },
 ) : ViewModel() {
   companion object {
     const val ALL_CAMPUSES = "全部"
@@ -86,34 +86,38 @@ class CgyyViewModel(
   fun loadInitialData() {
     viewModelScope.launch {
       _uiState.value =
-          _uiState.value.copy(
-              isInitialLoading = true,
-              initialError = null,
-              dayInfoError = null,
-          )
+              _uiState.value.copy(
+                      isInitialLoading = true,
+                      initialError = null,
+                      dayInfoError = null,
+              )
 
       val sitesResult = cgyyApi.getVenueSites()
       val purposeTypesResult = cgyyApi.getPurposeTypes()
 
       val sites = sitesResult.getOrNull().orEmpty()
       val purposeTypes = purposeTypesResult.getOrNull().orEmpty()
+      val currentPurposeType = _uiState.value.purposeType
       val siteId = _uiState.value.selectedSiteId ?: sites.firstOrNull()?.id
 
       _uiState.value =
-          _uiState.value.copy(
-              isInitialLoading = false,
-              sites = sites,
-              selectedCampus = _uiState.value.selectedCampus.ifBlank { ALL_CAMPUSES },
-              purposeTypes = purposeTypes,
-              selectedSiteId = siteId,
-              purposeType =
-                  _uiState.value.purposeType?.takeIf { currentType ->
-                    purposeTypes.any { it.key == currentType }
-                  } ?: purposeTypes.firstOrNull()?.key,
-              initialError =
-                  sitesResult.exceptionOrNull()?.message
-                      ?: purposeTypesResult.exceptionOrNull()?.message,
-          )
+              _uiState.value.copy(
+                      isInitialLoading = false,
+                      sites = sites,
+                      selectedCampus = _uiState.value.selectedCampus.ifBlank { ALL_CAMPUSES },
+                      purposeTypes = purposeTypes,
+                      selectedSiteId = siteId,
+                      purposeType =
+                              when {
+                                purposeTypes.isEmpty() -> currentPurposeType
+                                currentPurposeType != null &&
+                                        purposeTypes.any { it.key == currentPurposeType } ->
+                                        currentPurposeType
+                                else -> purposeTypes.firstOrNull()?.key
+                              },
+                      initialError = sitesResult.exceptionOrNull()?.message
+                                      ?: purposeTypesResult.exceptionOrNull()?.message,
+              )
 
       if (siteId != null) {
         loadDayInfo(siteId, _uiState.value.selectedDate.ifBlank { currentDateProvider() })
@@ -137,19 +141,19 @@ class CgyyViewModel(
   fun setReserveCampus(campus: String) {
     val current = _uiState.value
     val campusSites =
-        if (campus == ALL_CAMPUSES) current.sites
-        else current.sites.filter { it.campusName == campus }
+            if (campus == ALL_CAMPUSES) current.sites
+            else current.sites.filter { it.campusName == campus }
     val nextSiteId =
-        current.selectedSiteId?.takeIf { selectedId -> campusSites.any { it.id == selectedId } }
-            ?: campusSites.firstOrNull()?.id
+            current.selectedSiteId?.takeIf { selectedId -> campusSites.any { it.id == selectedId } }
+                    ?: campusSites.firstOrNull()?.id
     _uiState.value =
-        current.copy(
-            selectedCampus = campus,
-            selectedSiteId = nextSiteId,
-            selections = emptyList(),
-            reservationSummary = null,
-            actionMessage = null,
-        )
+            current.copy(
+                    selectedCampus = campus,
+                    selectedSiteId = nextSiteId,
+                    selections = emptyList(),
+                    reservationSummary = null,
+                    actionMessage = null,
+            )
     if (nextSiteId != null) {
       loadDayInfo(nextSiteId, current.selectedDate.ifBlank { currentDateProvider() })
     }
@@ -161,52 +165,52 @@ class CgyyViewModel(
 
   fun selectSite(siteId: Int) {
     _uiState.value =
-        _uiState.value.copy(
-            selectedSiteId = siteId,
-            selections = emptyList(),
-            reservationSummary = null,
-            actionMessage = null,
-        )
+            _uiState.value.copy(
+                    selectedSiteId = siteId,
+                    selections = emptyList(),
+                    reservationSummary = null,
+                    actionMessage = null,
+            )
     loadDayInfo(siteId, _uiState.value.selectedDate.ifBlank { currentDateProvider() })
   }
 
   fun selectDate(date: String) {
     val siteId = _uiState.value.selectedSiteId ?: return
     _uiState.value =
-        _uiState.value.copy(
-            selectedDate = date,
-            selections = emptyList(),
-            reservationSummary = null,
-            actionMessage = null,
-        )
+            _uiState.value.copy(
+                    selectedDate = date,
+                    selections = emptyList(),
+                    reservationSummary = null,
+                    actionMessage = null,
+            )
     loadDayInfo(siteId, date)
   }
 
   fun toggleSlot(spaceId: Int, timeId: Int, venueSpaceGroupId: Int?) {
     val currentState = _uiState.value
     val tappedSelection =
-        CgyyReservationSelectionDto(
-            spaceId = spaceId,
-            timeId = timeId,
-            venueSpaceGroupId = venueSpaceGroupId,
-        )
+            CgyyReservationSelectionDto(
+                    spaceId = spaceId,
+                    timeId = timeId,
+                    venueSpaceGroupId = venueSpaceGroupId,
+            )
     val orderedTimeIds =
-        currentState.dayInfo?.timeSlots?.mapIndexed { index, slot -> slot.id to index }?.toMap()
+            currentState.dayInfo?.timeSlots?.mapIndexed { index, slot -> slot.id to index }?.toMap()
     val existingSelections =
-        currentState.selections.sortedBy { orderedTimeIds?.get(it.timeId) ?: Int.MAX_VALUE }
+            currentState.selections.sortedBy { orderedTimeIds?.get(it.timeId) ?: Int.MAX_VALUE }
     val nextSelections =
-        when {
-          existingSelections.any { it.spaceId == spaceId && it.timeId == timeId } ->
-              existingSelections.filterNot { it.spaceId == spaceId && it.timeId == timeId }
-          existingSelections.isEmpty() -> listOf(tappedSelection)
-          existingSelections.any { it.spaceId != spaceId } -> listOf(tappedSelection)
-          existingSelections.size == 1 &&
-              areAdjacent(existingSelections.first().timeId, timeId, orderedTimeIds) ->
-              listOf(existingSelections.first(), tappedSelection).sortedBy {
-                orderedTimeIds?.get(it.timeId) ?: Int.MAX_VALUE
-              }
-          else -> listOf(tappedSelection)
-        }
+            when {
+              existingSelections.any { it.spaceId == spaceId && it.timeId == timeId } ->
+                      existingSelections.filterNot { it.spaceId == spaceId && it.timeId == timeId }
+              existingSelections.isEmpty() -> listOf(tappedSelection)
+              existingSelections.any { it.spaceId != spaceId } -> listOf(tappedSelection)
+              existingSelections.size == 1 &&
+                      areAdjacent(existingSelections.first().timeId, timeId, orderedTimeIds) ->
+                      listOf(existingSelections.first(), tappedSelection).sortedBy {
+                        orderedTimeIds?.get(it.timeId) ?: Int.MAX_VALUE
+                      }
+              else -> listOf(tappedSelection)
+            }
     val nextState = _uiState.value.copy(selections = nextSelections, actionMessage = null)
     _uiState.value = nextState.copy(reservationSummary = buildReservationSummary(nextState))
   }
@@ -246,12 +250,12 @@ class CgyyViewModel(
   fun canAdvanceToReservationForm(): Boolean = _uiState.value.reservationSummary != null
 
   fun selectionHint(): String =
-      when {
-        _uiState.value.selectedSiteId == null -> "请先选择研讨室"
-        _uiState.value.selectedDate.isBlank() -> "请先选择预约日期"
-        _uiState.value.selections.isEmpty() -> "请至少选择一个可预约时段"
-        else -> "已完成选择，可以进入下一步"
-      }
+          when {
+            _uiState.value.selectedSiteId == null -> "请先选择研讨室"
+            _uiState.value.selectedDate.isBlank() -> "请先选择预约日期"
+            _uiState.value.selections.isEmpty() -> "请至少选择一个可预约时段"
+            else -> "已完成选择，可以进入下一步"
+          }
 
   fun submitReservation(onSuccess: (() -> Unit)? = null) {
     val current = _uiState.value
@@ -268,129 +272,126 @@ class CgyyViewModel(
 
     viewModelScope.launch {
       _uiState.value =
-          _uiState.value.copy(
-              isSubmitting = true,
-              actionMessage = null,
-              hasTriedSubmitReservation = true,
-          )
-      val result =
-          cgyyApi.submitReservation(
-              CgyyReservationSubmitRequest(
-                  venueSiteId = siteId,
-                  reservationDate = current.selectedDate,
-                  selections = current.selections,
-                  phone = current.phone,
-                  theme = current.theme,
-                  purposeType = purposeType,
-                  joinerNum = joinerNum,
-                  activityContent = current.activityContent,
-                  joiners = current.joiners,
-                  isPhilosophySocialSciences = current.isPhilosophySocialSciences,
-                  isOffSchoolJoiner = current.isOffSchoolJoiner,
+              _uiState.value.copy(
+                      isSubmitting = true,
+                      actionMessage = null,
+                      hasTriedSubmitReservation = true,
               )
-          )
+      val result =
+              cgyyApi.submitReservation(
+                      CgyyReservationSubmitRequest(
+                              venueSiteId = siteId,
+                              reservationDate = current.selectedDate,
+                              selections = current.selections,
+                              phone = current.phone,
+                              theme = current.theme,
+                              purposeType = purposeType,
+                              joinerNum = joinerNum,
+                              activityContent = current.activityContent,
+                              joiners = current.joiners,
+                              isPhilosophySocialSciences = current.isPhilosophySocialSciences,
+                              isOffSchoolJoiner = current.isOffSchoolJoiner,
+                      )
+              )
       result
-          .onSuccess {
-            val storedForm =
-                StoredCgyyReservationForm(
-                    phone = current.phone,
-                    theme = current.theme,
-                    purposeType = purposeType,
-                    joinerNum = current.joinerNum,
-                    activityContent = current.activityContent,
-                    joiners = current.joiners,
-                    isPhilosophySocialSciences = current.isPhilosophySocialSciences,
-                    isOffSchoolJoiner = current.isOffSchoolJoiner,
-                )
-            CgyyReservationFormStore.save(storedForm)
-            _uiState.value =
-                _uiState.value.copy(
-                    isSubmitting = false,
-                    selections = emptyList(),
-                    reservationSummary = null,
-                    phone = storedForm.phone,
-                    theme = storedForm.theme,
-                    purposeType = storedForm.purposeType,
-                    joinerNum = storedForm.joinerNum,
-                    activityContent = storedForm.activityContent,
-                    joiners = storedForm.joiners,
-                    isPhilosophySocialSciences = storedForm.isPhilosophySocialSciences,
-                    isOffSchoolJoiner = storedForm.isOffSchoolJoiner,
-                    hasTriedSubmitReservation = false,
-                    actionMessage = it.message,
-                )
-            loadDayInfo(siteId, current.selectedDate)
-            loadOrders()
-            onSuccess?.invoke()
-          }
-          .onFailure {
-            _uiState.value =
-                _uiState.value.copy(
-                    isSubmitting = false,
-                    actionMessage = it.message ?: "预约失败",
-                )
-          }
+              .onSuccess {
+                val storedForm =
+                        StoredCgyyReservationForm(
+                                phone = current.phone,
+                                theme = current.theme,
+                                purposeType = purposeType,
+                                joinerNum = current.joinerNum,
+                                activityContent = current.activityContent,
+                                joiners = current.joiners,
+                                isPhilosophySocialSciences = current.isPhilosophySocialSciences,
+                                isOffSchoolJoiner = current.isOffSchoolJoiner,
+                        )
+                CgyyReservationFormStore.save(storedForm)
+                _uiState.value =
+                        _uiState.value.copy(
+                                isSubmitting = false,
+                                selections = emptyList(),
+                                reservationSummary = null,
+                                phone = storedForm.phone,
+                                theme = storedForm.theme,
+                                purposeType = storedForm.purposeType,
+                                joinerNum = storedForm.joinerNum,
+                                activityContent = storedForm.activityContent,
+                                joiners = storedForm.joiners,
+                                isPhilosophySocialSciences = storedForm.isPhilosophySocialSciences,
+                                isOffSchoolJoiner = storedForm.isOffSchoolJoiner,
+                                hasTriedSubmitReservation = false,
+                                actionMessage = it.message,
+                        )
+                loadDayInfo(siteId, current.selectedDate)
+                loadOrders()
+                onSuccess?.invoke()
+              }
+              .onFailure {
+                _uiState.value =
+                        _uiState.value.copy(
+                                isSubmitting = false,
+                                actionMessage = it.message ?: "预约失败",
+                        )
+              }
     }
   }
 
   fun loadOrders(page: Int = 0, size: Int = 20) {
     viewModelScope.launch {
       _uiState.value = _uiState.value.copy(isOrdersLoading = true, ordersError = null)
-      cgyyApi
-          .getMyOrders(page, size)
-          .onSuccess {
-            _uiState.value =
-                _uiState.value.copy(
-                    isOrdersLoading = false,
-                    orders = it,
-                    ordersError = null,
-                )
-          }
-          .onFailure {
-            _uiState.value =
-                _uiState.value.copy(
-                    isOrdersLoading = false,
-                    ordersError = it.message ?: "加载预约列表失败",
-                )
-          }
+      cgyyApi.getMyOrders(page, size)
+              .onSuccess {
+                _uiState.value =
+                        _uiState.value.copy(
+                                isOrdersLoading = false,
+                                orders = it,
+                                ordersError = null,
+                        )
+              }
+              .onFailure {
+                _uiState.value =
+                        _uiState.value.copy(
+                                isOrdersLoading = false,
+                                ordersError = it.message ?: "加载预约列表失败",
+                        )
+              }
     }
   }
 
   fun cancelOrder(orderId: Int) {
     viewModelScope.launch {
       _uiState.value = _uiState.value.copy(actionMessage = null)
-      cgyyApi
-          .cancelOrder(orderId)
-          .onSuccess {
-            _uiState.value = _uiState.value.copy(actionMessage = it.message)
-            loadOrders(_uiState.value.orders.number, _uiState.value.orders.size)
-          }
-          .onFailure {
-            _uiState.value = _uiState.value.copy(actionMessage = it.message ?: "取消预约失败")
-          }
+      cgyyApi.cancelOrder(orderId)
+              .onSuccess {
+                _uiState.value = _uiState.value.copy(actionMessage = it.message)
+                loadOrders(_uiState.value.orders.number, _uiState.value.orders.size)
+              }
+              .onFailure {
+                _uiState.value = _uiState.value.copy(actionMessage = it.message ?: "取消预约失败")
+              }
     }
   }
 
   fun loadLockCode() {
     viewModelScope.launch {
       _uiState.value = _uiState.value.copy(isLockCodeLoading = true, lockCodeError = null)
-      cgyyApi
-          .getLockCode()
-          .onSuccess {
-            _uiState.value =
-                _uiState.value.copy(
-                    isLockCodeLoading = false,
-                    lockCode = it,
-                    lockCodeError = null,
-                )
-          }
-          .onFailure {
-            _uiState.value =
-                _uiState.value.copy(
-                    isLockCodeLoading = false,
-                    lockCodeError = it.message ?: "加载门锁密码失败",
-                )
-          }
+      cgyyApi.getLockCode()
+              .onSuccess {
+                _uiState.value =
+                        _uiState.value.copy(
+                                isLockCodeLoading = false,
+                                lockCode = it,
+                                lockCodeError = null,
+                        )
+              }
+              .onFailure {
+                _uiState.value =
+                        _uiState.value.copy(
+                                isLockCodeLoading = false,
+                                lockCodeError = it.message ?: "加载门锁密码失败",
+                        )
+              }
     }
   }
 
@@ -411,35 +412,36 @@ class CgyyViewModel(
   private fun loadDayInfo(siteId: Int, date: String) {
     viewModelScope.launch {
       _uiState.value = _uiState.value.copy(isDayInfoLoading = true, dayInfoError = null)
-      cgyyApi
-          .getDayInfo(siteId, date)
-          .onSuccess { response ->
-            val filteredSelections =
-                _uiState.value.selections.filter { selection ->
-                  response.spaces.any { space ->
-                    space.spaceId == selection.spaceId &&
-                        space.slots.any { it.timeId == selection.timeId && it.isReservable }
-                  }
-                }
-            val nextState =
-                _uiState.value.copy(
-                    isDayInfoLoading = false,
-                    dayInfo = response,
-                    selectedDate = response.reservationDate,
-                    selections = filteredSelections,
-                )
-            _uiState.value =
-                nextState.copy(
-                    reservationSummary = buildReservationSummary(nextState),
-                )
-          }
-          .onFailure {
-            _uiState.value =
-                _uiState.value.copy(
-                    isDayInfoLoading = false,
-                    dayInfoError = it.message ?: "加载可预约信息失败",
-                )
-          }
+      cgyyApi.getDayInfo(siteId, date)
+              .onSuccess { response ->
+                val filteredSelections =
+                        _uiState.value.selections.filter { selection ->
+                          response.spaces.any { space ->
+                            space.spaceId == selection.spaceId &&
+                                    space.slots.any {
+                                      it.timeId == selection.timeId && it.isReservable
+                                    }
+                          }
+                        }
+                val nextState =
+                        _uiState.value.copy(
+                                isDayInfoLoading = false,
+                                dayInfo = response,
+                                selectedDate = response.reservationDate,
+                                selections = filteredSelections,
+                        )
+                _uiState.value =
+                        nextState.copy(
+                                reservationSummary = buildReservationSummary(nextState),
+                        )
+              }
+              .onFailure {
+                _uiState.value =
+                        _uiState.value.copy(
+                                isDayInfoLoading = false,
+                                dayInfoError = it.message ?: "加载可预约信息失败",
+                        )
+              }
     }
   }
 
@@ -450,21 +452,21 @@ class CgyyViewModel(
   private fun createInitialState(): CgyyUiState {
     val storedForm = CgyyReservationFormStore.get()
     return CgyyUiState(
-        phone = storedForm?.phone.orEmpty(),
-        theme = storedForm?.theme.orEmpty(),
-        purposeType = storedForm?.purposeType,
-        joinerNum = storedForm?.joinerNum ?: "1",
-        activityContent = storedForm?.activityContent.orEmpty(),
-        joiners = storedForm?.joiners.orEmpty(),
-        isPhilosophySocialSciences = storedForm?.isPhilosophySocialSciences ?: false,
-        isOffSchoolJoiner = storedForm?.isOffSchoolJoiner ?: false,
+            phone = storedForm?.phone.orEmpty(),
+            theme = storedForm?.theme.orEmpty(),
+            purposeType = storedForm?.purposeType,
+            joinerNum = storedForm?.joinerNum ?: "1",
+            activityContent = storedForm?.activityContent.orEmpty(),
+            joiners = storedForm?.joiners.orEmpty(),
+            isPhilosophySocialSciences = storedForm?.isPhilosophySocialSciences ?: false,
+            isOffSchoolJoiner = storedForm?.isOffSchoolJoiner ?: false,
     )
   }
 
   private fun areAdjacent(
-      firstTimeId: Int,
-      secondTimeId: Int,
-      orderedTimeIds: Map<Int, Int>?,
+          firstTimeId: Int,
+          secondTimeId: Int,
+          orderedTimeIds: Map<Int, Int>?,
   ): Boolean {
     val firstIndex = orderedTimeIds?.get(firstTimeId) ?: return false
     val secondIndex = orderedTimeIds[secondTimeId] ?: return false
@@ -479,24 +481,27 @@ class CgyyViewModel(
     val site = state.sites.firstOrNull { it.id == selectedSiteId } ?: return null
     val dayInfo = state.dayInfo ?: return null
     val space = dayInfo.spaces.firstOrNull { it.spaceId == selectedSpaceId } ?: return null
+    val orderedTimeIds = dayInfo.timeSlots.mapIndexed { index, slot -> slot.id to index }.toMap()
     val selectedTimeIds = state.selections.map { it.timeId }.toSet()
     val slotLabels =
-        space.slots
-            .filter { it.timeId in selectedTimeIds }
-            .sortedBy { it.timeId }
-            .mapNotNull { slot ->
-              dayInfo.timeSlots.firstOrNull { it.id == slot.timeId }?.label
-                  ?: slot.startDate?.substringAfter(" ")?.let { start ->
-                    slot.endDate?.substringAfter(" ")?.let { end -> "$start-$end" }
-                  }
-            }
+            space.slots
+                    .filter { it.timeId in selectedTimeIds }
+                    .sortedBy { orderedTimeIds[it.timeId] ?: Int.MAX_VALUE }
+                    .mapNotNull { slot ->
+                      dayInfo.timeSlots.firstOrNull { it.id == slot.timeId }?.label
+                              ?: slot.startDate?.substringAfter(" ")?.let { start ->
+                                slot.endDate?.substringAfter(" ")?.let { end -> "$start-$end" }
+                              }
+                    }
     if (slotLabels.isEmpty()) return null
     return CgyyReservationSummary(
-        siteLabel =
-            listOf(site.venueName, site.siteName).filter { it.isNotBlank() }.joinToString(" "),
-        reservationDate = state.selectedDate,
-        spaceName = space.spaceName,
-        slotLabels = slotLabels,
+            siteLabel =
+                    listOf(site.venueName, site.siteName)
+                            .filter { it.isNotBlank() }
+                            .joinToString(" "),
+            reservationDate = state.selectedDate,
+            spaceName = space.spaceName,
+            slotLabels = slotLabels,
     )
   }
 }

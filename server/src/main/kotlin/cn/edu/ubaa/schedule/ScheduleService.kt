@@ -204,7 +204,6 @@ class ScheduleService(
   private fun isByxtSessionExpired(response: HttpResponse, body: String): Boolean =
       response.status == HttpStatusCode.Unauthorized ||
           !ByxtService.isSessionReady(response.status, response.request.url.toString(), body)
-
 }
 
 class ScheduleException(message: String) : Exception(message)

@@ -14,8 +14,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import cn.edu.ubaa.model.dto.BykcCourseDto
 import cn.edu.ubaa.model.dto.BykcCourseDetailDto
+import cn.edu.ubaa.model.dto.BykcCourseDto
 import cn.edu.ubaa.model.dto.BykcCourseStatus
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -65,7 +65,10 @@ fun BykcCourseDetailScreen(
           }
         }
         error != null -> {
-          Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
+          Box(
+              modifier = Modifier.fillMaxSize().padding(16.dp),
+              contentAlignment = Alignment.Center,
+          ) {
             Text(text = "加载失败: $error", color = MaterialTheme.colorScheme.error)
           }
         }
@@ -192,12 +195,12 @@ fun BykcCourseDetailScreen(
                         now = localNow,
                     )
                     ?.let { selectTime ->
-                  DetailItem(
-                      label = selectTime.label,
-                      value = selectTime.value,
-                      icon = Icons.Default.DateRange,
-                  )
-                }
+                      DetailItem(
+                          label = selectTime.label,
+                          value = selectTime.value,
+                          icon = Icons.Default.DateRange,
+                      )
+                    }
                 course.courseCancelEndDate?.let { cancelEnd ->
                   DetailItem(
                       label = "退选截止",
@@ -208,7 +211,9 @@ fun BykcCourseDetailScreen(
               }
             }
 
-            if (!course.courseContact.isNullOrBlank() || !course.courseContactMobile.isNullOrBlank()) {
+            if (
+                !course.courseContact.isNullOrBlank() || !course.courseContactMobile.isNullOrBlank()
+            ) {
               item {
                 DetailCard(title = "联系方式") {
                   course.courseContact?.let { contact ->

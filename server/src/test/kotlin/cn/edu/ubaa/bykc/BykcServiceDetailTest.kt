@@ -1,8 +1,8 @@
 package cn.edu.ubaa.bykc
 
-import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.coroutines.runBlocking
 
 class BykcServiceDetailTest {
 

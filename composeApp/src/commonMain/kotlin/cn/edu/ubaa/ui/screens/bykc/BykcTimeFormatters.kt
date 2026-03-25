@@ -53,10 +53,8 @@ fun resolveSelectTimeDisplay(
   return when {
     !startDate.isNullOrBlank() && start != null && now < start ->
         BykcSelectTimeDisplay("开始选课", formatDateTimeDisplay(startDate))
-    !endDate.isNullOrBlank() ->
-        BykcSelectTimeDisplay("截止选课", formatDateTimeDisplay(endDate))
-    !startDate.isNullOrBlank() ->
-        BykcSelectTimeDisplay("开始选课", formatDateTimeDisplay(startDate))
+    !endDate.isNullOrBlank() -> BykcSelectTimeDisplay("截止选课", formatDateTimeDisplay(endDate))
+    !startDate.isNullOrBlank() -> BykcSelectTimeDisplay("开始选课", formatDateTimeDisplay(startDate))
     else -> null
   }
 }

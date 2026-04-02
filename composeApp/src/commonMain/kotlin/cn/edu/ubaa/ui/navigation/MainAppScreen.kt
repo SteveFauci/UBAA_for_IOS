@@ -46,6 +46,9 @@ import cn.edu.ubaa.ui.screens.spoc.SpocAssignmentDetailScreen
 import cn.edu.ubaa.ui.screens.spoc.SpocAssignmentsScreen
 import cn.edu.ubaa.ui.screens.spoc.SpocSortField
 import cn.edu.ubaa.ui.screens.spoc.SpocViewModel
+import cn.edu.ubaa.ui.screens.ygdk.YgdkClockinFormScreen
+import cn.edu.ubaa.ui.screens.ygdk.YgdkHomeScreen
+import cn.edu.ubaa.ui.screens.ygdk.YgdkViewModel
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlinx.coroutines.delay
@@ -77,6 +80,8 @@ enum class AppScreen {
   EVALUATION,
   SPOC_ASSIGNMENTS,
   SPOC_ASSIGNMENT_DETAIL,
+  YGDK_HOME,
+  YGDK_FORM,
 }
 
 /**
@@ -135,6 +140,9 @@ fun MainAppScreen(
   val bykcCoursesState by bykcViewModel.coursesState.collectAsState()
   val bykcDetailState by bykcViewModel.courseDetailState.collectAsState()
   val bykcChosenState by bykcViewModel.chosenCoursesState.collectAsState()
+  val ygdkViewModel: YgdkViewModel =
+      viewModel(key = "ygdk-${userData.schoolid}") { YgdkViewModel() }
+  val ygdkUiState by ygdkViewModel.uiState.collectAsState()
 
   var selectedCourse by remember { mutableStateOf<CourseClass?>(null) }
   var selectedBykcCourseId by remember { mutableStateOf<Long?>(null) }
@@ -213,7 +221,9 @@ fun MainAppScreen(
               AppScreen.CGYY_RESERVE_FORM,
               AppScreen.CGYY_ORDERS,
               AppScreen.CGYY_LOCK_CODE,
-              AppScreen.EVALUATION -> BottomNavTab.ADVANCED
+              AppScreen.EVALUATION,
+              AppScreen.YGDK_HOME,
+              AppScreen.YGDK_FORM -> BottomNavTab.ADVANCED
               else -> null
             }
     tab?.let { selectedBottomTab = it }
@@ -246,7 +256,9 @@ fun MainAppScreen(
             AppScreen.CGYY_RESERVE_FORM,
             AppScreen.CGYY_ORDERS,
             AppScreen.CGYY_LOCK_CODE,
-            AppScreen.EVALUATION -> BottomNavTab.ADVANCED
+            AppScreen.EVALUATION,
+            AppScreen.YGDK_HOME,
+            AppScreen.YGDK_FORM -> BottomNavTab.ADVANCED
             else -> null
           }
       tab?.let { selectedBottomTab = it }
@@ -330,6 +342,8 @@ fun MainAppScreen(
         AppScreen.EVALUATION -> "自动评教"
         AppScreen.SPOC_ASSIGNMENTS -> "SPOC作业"
         AppScreen.SPOC_ASSIGNMENT_DETAIL -> "作业详情"
+        AppScreen.YGDK_HOME -> "阳光打卡"
+        AppScreen.YGDK_FORM -> "新增打卡"
       }
 
   Box(modifier = modifier.fillMaxSize()) {
@@ -422,6 +436,7 @@ fun MainAppScreen(
                   onSigninClick = { navigateTo(AppScreen.SIGNIN) },
                   onCgyyClick = { navigateTo(AppScreen.CGYY_HOME) },
                   onEvaluationClick = { navigateTo(AppScreen.EVALUATION) },
+                  onYgdkClick = { navigateTo(AppScreen.YGDK_HOME) },
               )
           AppScreen.MY -> MyScreen(userInfo = userInfo)
           AppScreen.ABOUT -> AboutScreen()
@@ -540,6 +555,30 @@ fun MainAppScreen(
           AppScreen.CGYY_ORDERS -> CgyyOrdersScreen(viewModel = cgyyViewModel)
           AppScreen.CGYY_LOCK_CODE -> CgyyLockCodeScreen(viewModel = cgyyViewModel)
           AppScreen.EVALUATION -> EvaluationScreen(viewModel = evaluationViewModel)
+          AppScreen.YGDK_HOME ->
+              YgdkHomeScreen(
+                  uiState = ygdkUiState,
+                  onRefresh = { ygdkViewModel.refreshAll() },
+                  onLoadMore = { ygdkViewModel.loadMoreRecords() },
+                  onAddClick = { navigateTo(AppScreen.YGDK_FORM) },
+                  onMessageConsumed = { ygdkViewModel.clearSubmitMessage() },
+              )
+          AppScreen.YGDK_FORM ->
+              YgdkClockinFormScreen(
+                  uiState = ygdkUiState,
+                  imagePicker =
+                      cn.edu.ubaa.ui.common.util.rememberPlatformImagePicker(
+                          onImagePicked = { ygdkViewModel.setPhoto(it) },
+                          onError = { ygdkViewModel.showMessage(it) },
+                      ),
+                  onItemSelected = { ygdkViewModel.updateItemId(it) },
+                  onStartTimeChange = { ygdkViewModel.updateStartTime(it) },
+                  onEndTimeChange = { ygdkViewModel.updateEndTime(it) },
+                  onPlaceChange = { ygdkViewModel.updatePlace(it) },
+                  onShareChange = { ygdkViewModel.setShareToSquare(it) },
+                  onClearPhoto = { ygdkViewModel.clearPhoto() },
+                  onSubmit = { ygdkViewModel.submitClockin { navigateBack() } },
+              )
           AppScreen.SPOC_ASSIGNMENTS ->
               SpocAssignmentsScreen(
                   viewModel = spocViewModel,
@@ -581,6 +620,8 @@ fun MainAppScreen(
                   AppScreen.CGYY_ORDERS,
                   AppScreen.CGYY_LOCK_CODE,
                   AppScreen.EVALUATION,
+                  AppScreen.YGDK_HOME,
+                  AppScreen.YGDK_FORM,
                   AppScreen.SPOC_ASSIGNMENTS,
                   AppScreen.SPOC_ASSIGNMENT_DETAIL,
               )

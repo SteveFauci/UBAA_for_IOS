@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.model.dto.CgyyOrderDisplayColor
 import cn.edu.ubaa.model.dto.CgyyOrderDto
+import cn.edu.ubaa.model.dto.displayReservationDateText
 import cn.edu.ubaa.model.dto.CgyyPurposeTypeDto
 import cn.edu.ubaa.model.dto.displayStatus
 import kotlinx.serialization.json.JsonElement
@@ -218,7 +219,7 @@ internal fun CgyyOrderDetailDialog(
           if (!rejectionReason.isNullOrBlank() && (order.checkStatus ?: 0) < 0) {
             CgyyDetailRow("驳回原因", rejectionReason, MaterialTheme.colorScheme.error)
           }
-          CgyyDetailRow("日期", order.reservationDateDetail ?: order.reservationDate.orEmpty())
+          CgyyDetailRow("日期", order.displayReservationDateText())
           CgyyDetailRow(
               "场地",
               listOf(order.venueName, order.siteName).filterNotNull().joinToString(" "),

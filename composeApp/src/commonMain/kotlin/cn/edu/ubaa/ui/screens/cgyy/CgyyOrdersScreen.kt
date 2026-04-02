@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.edu.ubaa.model.dto.CgyyOrderDto
+import cn.edu.ubaa.model.dto.displayReservationDateText
 import cn.edu.ubaa.model.dto.displayStatus
 
 @OptIn(ExperimentalMaterialApi::class)
@@ -142,10 +143,7 @@ private fun CgyyOrderCard(
         )
       }
 
-      Text(
-          order.reservationDateDetail ?: order.reservationDate.orEmpty(),
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
-      )
+      Text(order.displayReservationDateText(), color = MaterialTheme.colorScheme.onSurfaceVariant)
       Text("主题：${order.theme.orEmpty()}", maxLines = 1, overflow = TextOverflow.Ellipsis)
       Text(
           "活动类型：${order.purposeTypeName ?: order.purposeType?.toString().orEmpty()}",

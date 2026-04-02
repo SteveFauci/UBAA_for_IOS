@@ -179,6 +179,36 @@ private fun checkStatusDetailText(checkStatus: Int?): String? =
       else -> null
     }
 
+fun CgyyOrderDto.displayReservationDateText(): String {
+  val dateOnly = reservationDate.normalizedText()
+  reservationDateDetail?.normalizedText()?.let { detail ->
+    if (detail.containsExplicitDate()) return detail
+    val trimmedDetail = detail.withoutLeadingSpaceLabel(venueSpaceName, siteName)
+    if (dateOnly != null && trimmedDetail.isNotBlank()) {
+      return "$dateOnly $trimmedDetail"
+    }
+    if (dateOnly != null) return dateOnly
+    return detail
+  }
+
+  val startDateTime = reservationStartDate.normalizedText()
+  val endDateTime = reservationEndDate.normalizedText()
+  if (startDateTime != null && endDateTime != null) {
+    val startDate = startDateTime.substringBefore(" ")
+    val startTime = startDateTime.substringAfter(" ", missingDelimiterValue = "")
+    val endDate = endDateTime.substringBefore(" ")
+    val endTime = endDateTime.substringAfter(" ", missingDelimiterValue = "")
+    if (startDate == endDate && startTime.isNotBlank() && endTime.isNotBlank()) {
+      return "$startDate $startTime - $endTime"
+    }
+    return "$startDateTime - $endDateTime"
+  }
+
+  startDateTime?.let { return it }
+  dateOnly?.let { return it }
+  return "日期待定"
+}
+
 fun CgyyOrderDto.displayStatus(): CgyyOrderDisplayStatus {
   val detailText = checkStatusDetailText(checkStatus)
   return when {
@@ -233,4 +263,21 @@ fun CgyyOrderDto.displayStatus(): CgyyOrderDisplayStatus {
             isCancelable = false,
         )
   }
+}
+
+private fun String?.normalizedText(): String? =
+    this?.trim()?.replace('T', ' ')?.takeIf { it.isNotEmpty() }
+
+private fun String.containsExplicitDate(): Boolean =
+    contains('-') &&
+        length >= 10 &&
+        getOrNull(4) == '-' &&
+        getOrNull(7) == '-' &&
+        substring(0, 4).all(Char::isDigit)
+
+private fun String.withoutLeadingSpaceLabel(vararg labels: String?): String {
+  val normalized = trim()
+  val matchedLabel = labels.mapNotNull { it.normalizedText() }.firstOrNull { normalized.startsWith(it) }
+      ?: return normalized
+  return normalized.removePrefix(matchedLabel).trimStart(' ', '/', '-', '>')
 }

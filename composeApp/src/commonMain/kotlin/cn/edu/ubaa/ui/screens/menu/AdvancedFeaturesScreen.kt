@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.AssignmentTurnedIn
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.HowToReg
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -43,6 +44,7 @@ fun AdvancedFeaturesScreen(
     onSigninClick: () -> Unit,
     onCgyyClick: () -> Unit,
     onEvaluationClick: () -> Unit,
+    onYgdkClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
   val features =
@@ -58,6 +60,12 @@ fun AdvancedFeaturesScreen(
               title = "研讨室预约",
               description = "查询、提交和管理研讨室预约",
               icon = Icons.Default.DateRange,
+          ),
+          AdvancedFeatureItem(
+              id = "ygdk",
+              title = "阳光打卡",
+              description = "查看记录并提交体育活动打卡",
+              icon = Icons.Default.WbSunny,
           ),
           AdvancedFeatureItem(
               id = "evaluation",
@@ -86,6 +94,7 @@ fun AdvancedFeaturesScreen(
               when (feature.id) {
                 "signin" -> onSigninClick()
                 "cgyy" -> onCgyyClick()
+                "ygdk" -> onYgdkClick()
                 "evaluation" -> onEvaluationClick()
               }
             },

@@ -1,105 +1,54 @@
-    <!DOCTYPE html>
-    <html lang="zh-CN">
+<!DOCTYPE html>
+<html lang="zh-CN">
 
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>UBAA</title>
-        <!-- Web app metadata -->
-        <link rel="manifest" href="manifest.json">
-        <meta name="theme-color" content="#1976d2">
-        <meta name="mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-        <link rel="apple-touch-icon" href="pwa-icon.svg">
-        
-        <link type="text/css" rel="stylesheet" href="styles.css">
-        <script>
-            (() => {
-                const CACHE_PREFIX = 'ubaa-cache-';
-                const RELOAD_FLAG = 'ubaa-web-cache-reset';
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UBAA</title>
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#1976d2">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+    <link type="text/css" rel="stylesheet" href="./styles.css">
+    <script>
+        (() => {
+            const loadApp = () => {
+                if (document.querySelector('script[data-ubaa-app="true"]')) {
+                    return;
+                }
+                const script = document.createElement('script');
+                script.type = 'application/javascript';
+                script.src = './composeApp.js';
+                script.dataset.ubaaApp = 'true';
+                document.head.appendChild(script);
+            };
 
-                const hasReloadFlag = () => {
-                    try {
-                        return sessionStorage.getItem(RELOAD_FLAG) === '1';
-                    } catch (error) {
-                        return false;
-                    }
-                };
+            const registerServiceWorker = async () => {
+                if (!('serviceWorker' in navigator)) {
+                    return;
+                }
+                try {
+                    await navigator.serviceWorker.register('./sw.js', { scope: './' });
+                } catch (error) {
+                    console.warn('[UBAA] Failed to register service worker.', error);
+                }
+            };
 
-                const setReloadFlag = () => {
-                    try {
-                        sessionStorage.setItem(RELOAD_FLAG, '1');
-                    } catch (error) {
-                        console.warn('[UBAA] Failed to persist cache reset flag.', error);
-                    }
-                };
+            window.addEventListener('load', async () => {
+                await registerServiceWorker();
+                loadApp();
+            });
+        })();
+    </script>
+</head>
 
-                const clearReloadFlag = () => {
-                    try {
-                        sessionStorage.removeItem(RELOAD_FLAG);
-                    } catch (error) {
-                        console.warn('[UBAA] Failed to clear cache reset flag.', error);
-                    }
-                };
+<body>
+    <div id="app-loader">
+        <div class="spinner"></div>
+        <div class="loading-text">UBAA Loading...</div>
+    </div>
+</body>
 
-                const clearLegacyCaches = async () => {
-                    if (!('caches' in window)) return;
-                    const cacheNames = await caches.keys();
-                    await Promise.all(
-                        cacheNames
-                            .filter((cacheName) => cacheName.startsWith(CACHE_PREFIX))
-                            .map((cacheName) => caches.delete(cacheName))
-                    );
-                };
-
-                const unregisterLegacyServiceWorkers = async () => {
-                    if (!('serviceWorker' in navigator)) return;
-                    const registrations = await navigator.serviceWorker.getRegistrations();
-                    await Promise.all(
-                        registrations
-                            .filter((registration) => new URL(registration.scope).origin === window.location.origin)
-                            .map((registration) => registration.unregister())
-                    );
-                };
-
-                const loadApp = () => {
-                    const script = document.createElement('script');
-                    script.type = 'application/javascript';
-                    script.src = `composeApp.js?ts=${Date.now()}`;
-                    document.head.appendChild(script);
-                };
-
-                const bootstrap = async () => {
-                    const isControlled = 'serviceWorker' in navigator && !!navigator.serviceWorker.controller;
-
-                    try {
-                        await unregisterLegacyServiceWorkers();
-                        await clearLegacyCaches();
-                    } catch (error) {
-                        console.warn('[UBAA] Failed to clean up legacy web caches.', error);
-                    }
-
-                    if (isControlled && !hasReloadFlag()) {
-                        setReloadFlag();
-                        window.location.reload();
-                        return;
-                    }
-
-                    clearReloadFlag();
-                    loadApp();
-                };
-
-                bootstrap();
-            })();
-        </script>
-    </head>
-
-    <body>
-        <div id="app-loader">
-            <div class="spinner"></div>
-            <div class="loading-text">UBAA Loading...</div>
-        </div>
-    </body>
-
-    </html>
+</html>

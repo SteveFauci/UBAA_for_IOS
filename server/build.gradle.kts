@@ -14,6 +14,7 @@ group = "cn.edu.ubaa"
 version = project.property("project.version").toString()
 
 val serverVersion = version.toString()
+val versionResourceTokens = mapOf("serverVersion" to serverVersion)
 
 application {
   mainClass.set("cn.edu.ubaa.ApplicationKt")
@@ -37,7 +38,11 @@ kotlin {
   }
 }
 
-tasks.processResources { duplicatesStrategy = DuplicatesStrategy.EXCLUDE }
+tasks.processResources {
+  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+  inputs.properties(versionResourceTokens)
+  filesMatching("ubaa-version.properties") { expand(versionResourceTokens) }
+}
 
 tasks.withType<Test>().configureEach { systemProperty("ubaa.server.version", serverVersion) }
 

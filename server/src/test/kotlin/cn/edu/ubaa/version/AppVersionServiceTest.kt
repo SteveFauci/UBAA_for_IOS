@@ -8,10 +8,12 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
+import java.util.Properties
 import io.ktor.utils.io.ByteReadChannel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -93,6 +95,33 @@ class AppVersionServiceTest {
   }
 
   @Test
+  fun unknownServerVersionDoesNotTriggerUpdatePrompt() = runTest {
+    var fetchCalls = 0
+    val service =
+        AppVersionService(
+            config =
+                AppVersionRuntimeConfig(
+                    serverVersion = "unknown",
+                    downloadUrl = "https://download.example.com",
+                ),
+            releaseNotesFetcher =
+                object : ReleaseNotesFetcher {
+                  override suspend fun fetchReleaseNotes(serverVersion: String): String? {
+                    fetchCalls += 1
+                    return "should not be used"
+                  }
+                },
+        )
+
+    val response = service.checkVersion("1.5.1")
+
+    assertTrue(response.aligned)
+    assertEquals("unknown", response.serverVersion)
+    assertNull(response.releaseNotes)
+    assertEquals(0, fetchCalls)
+  }
+
+  @Test
   fun downloadUrlFallsBackToGithubReleasesWhenBlank() {
     assertEquals(
         "https://github.com/BUAASubnet/UBAA/releases",
@@ -157,5 +186,18 @@ class AppVersionServiceTest {
 
     assertNotSame(first, second)
     GlobalAppVersionService.close()
+  }
+
+  @Test
+  fun embeddedVersionResourceIsPackaged() {
+    val resourceStream =
+        AppVersionRuntimeConfig::class.java.classLoader?.getResourceAsStream("ubaa-version.properties")
+
+    assertNotNull(resourceStream)
+
+    val properties = Properties()
+    resourceStream.use { properties.load(it) }
+
+    assertTrue(properties.getProperty("project.version")?.isNotBlank() == true)
   }
 }

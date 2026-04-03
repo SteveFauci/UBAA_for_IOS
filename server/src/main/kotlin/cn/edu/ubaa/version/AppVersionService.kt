@@ -22,6 +22,8 @@ data class AppVersionRuntimeConfig(
 ) {
   companion object {
     private const val FALLBACK_DOWNLOAD_URL = "https://github.com/BUAASubnet/UBAA/releases"
+    private const val UNKNOWN_SERVER_VERSION = "unknown"
+    private const val VERSION_RESOURCE_NAME = "ubaa-version.properties"
 
     fun load(): AppVersionRuntimeConfig =
         AppVersionRuntimeConfig(
@@ -34,24 +36,47 @@ data class AppVersionRuntimeConfig(
         )
 
     internal fun loadServerVersion(): String {
-      System.getProperty("ubaa.server.version")
-          ?.trim()
-          ?.takeIf { it.isNotEmpty() }
-          ?.let {
-            return it
-          }
+      loadVersionFromSystemProperty()?.let { return it }
+      loadVersionFromEnvironment()?.let { return it }
+      loadVersionFromEmbeddedResource()?.let { return it }
+      loadVersionFromGradlePropertiesFile()?.let { return it }
+      return UNKNOWN_SERVER_VERSION
+    }
 
+    private fun loadVersionFromSystemProperty(): String? =
+        System.getProperty("ubaa.server.version")
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() && it != UNKNOWN_SERVER_VERSION }
+
+    private fun loadVersionFromEnvironment(): String? =
+        System.getenv("UBAA_SERVER_VERSION")
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() && it != UNKNOWN_SERVER_VERSION }
+
+    private fun loadVersionFromEmbeddedResource(): String? {
       val properties = Properties()
+      val resourceStream =
+          AppVersionRuntimeConfig::class.java.classLoader?.getResourceAsStream(VERSION_RESOURCE_NAME)
+      resourceStream?.use { properties.load(it) }
+      return properties.getProperty("project.version")?.trim()?.takeIf { it.isNotEmpty() }
+    }
+
+    private fun loadVersionFromGradlePropertiesFile(): String? {
       val gradleProperties = File("gradle.properties")
-      if (gradleProperties.exists()) {
-        gradleProperties.inputStream().use { properties.load(it) }
+      if (!gradleProperties.exists()) {
+        return null
       }
 
-      return properties.getProperty("project.version")?.trim().orEmpty().ifBlank { "unknown" }
+      val properties = Properties()
+      gradleProperties.inputStream().use { properties.load(it) }
+      return properties.getProperty("project.version")?.trim()?.takeIf { it.isNotEmpty() }
     }
 
     internal fun resolveDownloadUrl(configuredUrl: String?): String =
         configuredUrl?.trim()?.takeIf { it.isNotEmpty() } ?: FALLBACK_DOWNLOAD_URL
+
+    internal fun isKnownServerVersion(version: String): Boolean =
+        version.trim().isNotEmpty() && version.trim() != UNKNOWN_SERVER_VERSION
   }
 }
 
@@ -118,7 +143,9 @@ class AppVersionService(
   private var releaseNotesCacheInitialized = false
 
   suspend fun checkVersion(clientVersion: String): AppVersionCheckResponse {
-    val aligned = normalizeVersion(clientVersion) == normalizeVersion(config.serverVersion)
+    val aligned =
+        !AppVersionRuntimeConfig.isKnownServerVersion(config.serverVersion) ||
+            normalizeVersion(clientVersion) == normalizeVersion(config.serverVersion)
     val releaseNotes = if (aligned) null else loadReleaseNotes(config.serverVersion)
 
     return AppVersionCheckResponse(

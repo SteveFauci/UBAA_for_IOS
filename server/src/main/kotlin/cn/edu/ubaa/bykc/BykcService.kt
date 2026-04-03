@@ -10,6 +10,7 @@ import cn.edu.ubaa.model.dto.BykcCoursePage
 import cn.edu.ubaa.model.dto.BykcSignConfigDto
 import cn.edu.ubaa.model.dto.BykcSignPointDto
 import cn.edu.ubaa.model.dto.BykcStatisticsDto
+import cn.edu.ubaa.utils.withUpstreamDeadline
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.ConcurrentHashMap
@@ -21,7 +22,6 @@ import kotlin.math.sqrt
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.json.Json
-import cn.edu.ubaa.utils.withUpstreamDeadline
 import org.slf4j.LoggerFactory
 
 /**

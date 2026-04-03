@@ -198,8 +198,7 @@ class BykcViewModel(
           }
           .onFailure {
             val latest = _coursesState.value
-            _coursesState.value =
-                latest.copy(isLoadingMore = false, error = it.message ?: "加载更多失败")
+            _coursesState.value = latest.copy(isLoadingMore = false, error = it.message ?: "加载更多失败")
           }
     }
   }

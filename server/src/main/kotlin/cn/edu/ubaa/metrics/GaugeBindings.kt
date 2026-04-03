@@ -25,9 +25,10 @@ internal object GaugeBindings {
     val ref =
         suppliers.computeIfAbsent(key) {
           val gaugeSupplier = AtomicReference<() -> Double>({ 0.0 })
-          val builder = Gauge.builder(name, gaugeSupplier) { state ->
-            runCatching { state.get().invoke() }.getOrDefault(0.0)
-          }
+          val builder =
+              Gauge.builder(name, gaugeSupplier) { state ->
+                runCatching { state.get().invoke() }.getOrDefault(0.0)
+              }
           val flatTags = normalizedTags.flatMap { listOf(it.first, it.second) }.toTypedArray()
           if (flatTags.isNotEmpty()) {
             builder.tags(*flatTags)

@@ -1,14 +1,14 @@
 package cn.edu.ubaa.auth
 
+import cn.edu.ubaa.metrics.LoginMetricsSink
+import cn.edu.ubaa.metrics.LoginSuccessMode
+import cn.edu.ubaa.metrics.NoOpLoginMetricsSink
 import cn.edu.ubaa.model.dto.LoginPreloadResponse
 import cn.edu.ubaa.model.dto.LoginRequest
 import cn.edu.ubaa.model.dto.LoginResponse
 import cn.edu.ubaa.model.dto.TokenRefreshResponse
 import cn.edu.ubaa.model.dto.UserData
 import cn.edu.ubaa.model.dto.UserInfoResponse
-import cn.edu.ubaa.metrics.LoginMetricsSink
-import cn.edu.ubaa.metrics.LoginSuccessMode
-import cn.edu.ubaa.metrics.NoOpLoginMetricsSink
 import cn.edu.ubaa.utils.VpnCipher
 import io.ktor.client.HttpClient
 import io.ktor.client.call.*
@@ -16,10 +16,10 @@ import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.json.Json
 import kotlin.time.Duration
 import kotlin.time.TimeSource
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 
 /**
@@ -89,13 +89,15 @@ class AuthService(
               runCatching { verifySession(existingSession.client) }.getOrNull()
             }
         if (cachedUser != null) {
-          timeline.measure("issueTokens") {
-            maybeWarmupPortal(existingSession)
-            refreshTokenService.issueLoginTokens(cachedUser, request.username)
-          }.also {
-            timeline.logSuccess("reused_session")
-            return it
-          }
+          timeline
+              .measure("issueTokens") {
+                maybeWarmupPortal(existingSession)
+                refreshTokenService.issueLoginTokens(cachedUser, request.username)
+              }
+              .also {
+                timeline.logSuccess("reused_session")
+                return it
+              }
         }
         sessionManager.invalidateSession(request.username)
       }
@@ -140,7 +142,8 @@ class AuthService(
           followRedirectsAndCheckError(loginSubmitResponse, noRedirectClient)
         } else {
           // 标准流程：先拉取登录页获取 execution
-          val loginPageResponse = timeline.measure("loadLoginPage") { noRedirectClient.get(LOGIN_URL) }
+          val loginPageResponse =
+              timeline.measure("loadLoginPage") { noRedirectClient.get(LOGIN_URL) }
           if (
               !loginPageResponse.status.isSuccess() &&
                   loginPageResponse.status != HttpStatusCode.Found

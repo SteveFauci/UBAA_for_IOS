@@ -7,6 +7,7 @@ import cn.edu.ubaa.model.dto.YgdkOverviewResponse
 import cn.edu.ubaa.model.dto.YgdkRecordDto
 import cn.edu.ubaa.model.dto.YgdkRecordsPageResponse
 import cn.edu.ubaa.model.dto.YgdkTermSummaryDto
+import cn.edu.ubaa.utils.withUpstreamDeadline
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
 import java.time.LocalDateTime
@@ -19,7 +20,6 @@ import kotlin.random.Random
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import cn.edu.ubaa.utils.withUpstreamDeadline
 
 private const val YGDK_ZONE_ID = "Asia/Shanghai"
 private val YGDK_DATETIME_FORMATTER: DateTimeFormatter =
@@ -183,12 +183,20 @@ internal class YgdkService(
 
   private suspend fun resolveContext(username: String): ResolvedContext {
     val now = System.currentTimeMillis()
-    contextCache[username]?.takeIf { it.expiresAtMillis > now }?.let { return it.context }
+    contextCache[username]
+        ?.takeIf { it.expiresAtMillis > now }
+        ?.let {
+          return it.context
+        }
 
     val mutex = contextMutexes.computeIfAbsent(username) { Mutex() }
     return mutex.withLock {
       val cachedNow = System.currentTimeMillis()
-      contextCache[username]?.takeIf { it.expiresAtMillis > cachedNow }?.let { return@withLock it.context }
+      contextCache[username]
+          ?.takeIf { it.expiresAtMillis > cachedNow }
+          ?.let {
+            return@withLock it.context
+          }
 
       val context =
           withFreshClientRetry(username) { client ->

@@ -11,9 +11,9 @@ import cn.edu.ubaa.model.dto.CgyySlotStatusDto
 import cn.edu.ubaa.model.dto.CgyySpaceAvailabilityDto
 import cn.edu.ubaa.model.dto.CgyyTimeSlotDto
 import cn.edu.ubaa.model.dto.CgyyVenueSiteDto
+import cn.edu.ubaa.utils.withUpstreamDeadline
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.seconds
-import cn.edu.ubaa.utils.withUpstreamDeadline
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -158,9 +158,7 @@ class CgyyService(
   }
 
   suspend fun getOrderDetail(username: String, orderId: Int): CgyyOrderDto {
-    return withCgyyDeadline("研讨室预约详情加载超时") {
-      mapOrder(getClient(username).getOrderDetail(orderId))
-    }
+    return withCgyyDeadline("研讨室预约详情加载超时") { mapOrder(getClient(username).getOrderDetail(orderId)) }
   }
 
   suspend fun cancelOrder(username: String, orderId: Int): CgyyReservationSubmitResponse {

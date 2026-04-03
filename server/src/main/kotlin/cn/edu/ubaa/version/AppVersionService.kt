@@ -37,7 +37,9 @@ data class AppVersionRuntimeConfig(
       System.getProperty("ubaa.server.version")
           ?.trim()
           ?.takeIf { it.isNotEmpty() }
-          ?.let { return it }
+          ?.let {
+            return it
+          }
 
       val properties = Properties()
       val gradleProperties = File("gradle.properties")
@@ -66,7 +68,8 @@ internal class ProxyReleaseNotesFetcher(
 
   override suspend fun fetchReleaseNotes(serverVersion: String): String? {
     for (tag in tagCandidates(serverVersion)) {
-      val response = runCatching { client.get("$releasesBaseUrl/tags/$tag") }.getOrNull() ?: continue
+      val response =
+          runCatching { client.get("$releasesBaseUrl/tags/$tag") }.getOrNull() ?: continue
       if (response.status != HttpStatusCode.OK) continue
 
       val release = runCatching { response.body<ReleaseProxyResponse>() }.getOrNull() ?: continue

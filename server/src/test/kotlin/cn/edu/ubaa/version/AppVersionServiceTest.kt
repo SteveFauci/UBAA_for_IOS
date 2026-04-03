@@ -57,8 +57,7 @@ class AppVersionServiceTest {
                 ),
             releaseNotesFetcher =
                 object : ReleaseNotesFetcher {
-                  override suspend fun fetchReleaseNotes(serverVersion: String): String? =
-                      "修复了一批问题"
+                  override suspend fun fetchReleaseNotes(serverVersion: String): String? = "修复了一批问题"
                 },
         )
 
@@ -81,7 +80,8 @@ class AppVersionServiceTest {
                 ),
             releaseNotesFetcher =
                 object : ReleaseNotesFetcher {
-                  override suspend fun fetchReleaseNotes(serverVersion: String): String? = "请回退到服务端版本"
+                  override suspend fun fetchReleaseNotes(serverVersion: String): String? =
+                      "请回退到服务端版本"
                 },
         )
 
@@ -120,10 +120,7 @@ class AppVersionServiceTest {
 
     val fetcher =
         ProxyReleaseNotesFetcher(
-            client =
-                HttpClient(mockEngine) {
-                  install(ContentNegotiation) { json(json) }
-                }
+            client = HttpClient(mockEngine) { install(ContentNegotiation) { json(json) } }
         )
 
     val releaseNotes = fetcher.fetchReleaseNotes("1.5.0")
@@ -142,10 +139,7 @@ class AppVersionServiceTest {
 
     val fetcher =
         ProxyReleaseNotesFetcher(
-            client =
-                HttpClient(mockEngine) {
-                  install(ContentNegotiation) { json(json) }
-                }
+            client = HttpClient(mockEngine) { install(ContentNegotiation) { json(json) } }
         )
 
     assertNull(fetcher.fetchReleaseNotes("1.5.0"))

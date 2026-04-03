@@ -12,6 +12,7 @@ plugins {
 group = "cn.edu.ubaa"
 
 version = project.property("project.version").toString()
+
 val serverVersion = version.toString()
 
 application {

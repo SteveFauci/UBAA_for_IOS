@@ -1,7 +1,7 @@
 package cn.edu.ubaa
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.safeContentPadding
@@ -86,18 +86,16 @@ fun App() {
     // 版本更新对话框
     if (updateInfo != null) {
       val release = updateInfo!!
-      val releaseNotes =
-          release.releaseNotes?.takeIf { it.isNotBlank() } ?: "点击下方按钮下载与服务端版本对齐的客户端。"
-      val updateMessage =
-          buildString {
-            append("当前客户端版本：")
-            append(AppInfo.version)
-            append('\n')
-            append("当前服务端版本：")
-            append(release.serverVersion)
-            append("\n\n")
-            append(releaseNotes)
-          }
+      val releaseNotes = release.releaseNotes?.takeIf { it.isNotBlank() } ?: "点击下方按钮下载与服务端版本对齐的客户端。"
+      val updateMessage = buildString {
+        append("当前客户端版本：")
+        append(AppInfo.version)
+        append('\n')
+        append("当前服务端版本：")
+        append(release.serverVersion)
+        append("\n\n")
+        append(releaseNotes)
+      }
 
       AlertDialog(
           onDismissRequest = { updateInfo = null },

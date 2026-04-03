@@ -21,7 +21,9 @@ class UpdateService(private val apiClient: ApiClient = ApiClientProvider.shared)
   suspend fun checkUpdate(clientVersion: String = BuildKonfig.VERSION): AppVersionCheckResponse? {
     return try {
       val response =
-          apiClient.getClient().get("api/v1/app/version") { parameter("clientVersion", clientVersion) }
+          apiClient.getClient().get("api/v1/app/version") {
+            parameter("clientVersion", clientVersion)
+          }
       if (response.status != HttpStatusCode.OK) {
         return null
       }

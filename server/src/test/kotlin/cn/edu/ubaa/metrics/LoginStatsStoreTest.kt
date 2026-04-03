@@ -25,15 +25,14 @@ class LoginStatsStoreTest {
 
   @Test
   fun sumCounterValuesKeepsLongWindowTotalsWhenMostBucketsAreEmpty() {
-    val buckets =
-        buildList {
-          repeat(24) { index ->
-            val key = "metrics:login:events:$index"
-            add(KeyValue.empty<String, String>(key))
-          }
-          set(3, KeyValue.just("metrics:login:events:3", "4"))
-          set(18, KeyValue.just("metrics:login:events:18", "6"))
-        }
+    val buckets = buildList {
+      repeat(24) { index ->
+        val key = "metrics:login:events:$index"
+        add(KeyValue.empty<String, String>(key))
+      }
+      set(3, KeyValue.just("metrics:login:events:3", "4"))
+      set(18, KeyValue.just("metrics:login:events:18", "6"))
+    }
 
     assertEquals(10L, sumCounterValues(buckets))
   }

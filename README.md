@@ -97,7 +97,22 @@ cp .env.sample .env
 *   **📈 指标监控 (Metrics)**:
     *   Endpoint: `GET /metrics`
     *   格式: Prometheus 文本格式
-    *   内容: JVM 内存/GC、HTTP 请求吞吐/延迟、线程池状态等。
+    *   内容: JVM 内存/GC、HTTP 请求吞吐/延迟、线程池状态，以及登录成功统计。
+    *   常用 PromQL:
+        *   接口调用次数:
+            `sum by (route, method, status) (increase(ktor_http_server_requests_seconds_count[24h]))`
+        *   接口平均耗时:
+            `sum by (route, method, status) (increase(ktor_http_server_requests_seconds_sum[24h])) / sum by (route, method, status) (increase(ktor_http_server_requests_seconds_count[24h]))`
+        *   登录成功累计次数:
+            `sum by (mode) (ubaa_auth_login_success_total)`
+        *   固定窗口登录人次:
+            `ubaa_auth_login_events_window{window="24h"}`
+        *   固定窗口唯一登录用户数:
+            `ubaa_auth_login_unique_users_window{window="24h"}`
+    *   登录统计说明:
+        *   `ubaa_auth_login_success_total{mode="manual|preload_auto"}` 统计成功建立会话的登录次数。
+        *   `ubaa_auth_login_events_window{window="1h|24h|7d|30d"}` 统计固定窗口内的成功登录人次。
+        *   `ubaa_auth_login_unique_users_window{window="1h|24h|7d|30d"}` 使用 Redis HyperLogLog 做近似去重，适合监控看板，不保证绝对精确。
 
 *   **📝 日志系统 (Logging)**:
     *   **控制台**: 实时输出 Info 级别以上日志。

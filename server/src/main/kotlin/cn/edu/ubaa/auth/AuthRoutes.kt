@@ -2,6 +2,8 @@ package cn.edu.ubaa.auth
 
 import cn.edu.ubaa.api.SessionStatusResponse
 import cn.edu.ubaa.auth.JwtAuth.getUserSession
+import cn.edu.ubaa.metrics.LoginMetricsSink
+import cn.edu.ubaa.metrics.NoOpLoginMetricsSink
 import cn.edu.ubaa.model.dto.CaptchaRequiredResponse
 import cn.edu.ubaa.model.dto.LoginRequest
 import cn.edu.ubaa.model.dto.TokenRefreshRequest
@@ -25,9 +27,9 @@ import kotlinx.serialization.Serializable
 @Serializable data class ErrorDetails(val code: String, val message: String)
 
 /** 注册认证相关路由。 包含预加载、登录、状态查询、注销和验证码获取。 */
-fun Route.authRouting() {
+fun Route.authRouting(loginMetricsSink: LoginMetricsSink = NoOpLoginMetricsSink) {
   val sessionManager = GlobalSessionManager.instance
-  val authService = AuthService(sessionManager)
+  val authService = AuthService(sessionManager, loginMetricsSink = loginMetricsSink)
 
   route("/api/v1/auth") {
     /** POST /api/v1/auth/preload 预加载登录状态。为指定 clientId 创建或恢复一个预登录会话，并探测是否需要验证码。 */

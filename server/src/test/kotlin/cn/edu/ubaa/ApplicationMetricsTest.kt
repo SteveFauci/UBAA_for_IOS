@@ -1,0 +1,107 @@
+package cn.edu.ubaa
+
+import cn.edu.ubaa.metrics.InMemoryLoginStatsStore
+import cn.edu.ubaa.metrics.LoginMetricsRecorder
+import cn.edu.ubaa.metrics.LoginSuccessMode
+import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.testing.testApplication
+import io.micrometer.prometheusmetrics.PrometheusConfig
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
+import kotlin.test.Test
+import kotlin.test.assertContains
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
+
+class ApplicationMetricsTest {
+
+  @Test
+  fun metricsEndpointIncludesLoginAndHttpMetrics() = testApplication {
+    val registry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+    val store = InMemoryLoginStatsStore()
+    val clock = Clock.fixed(Instant.parse("2026-04-02T08:15:00Z"), ZoneOffset.UTC)
+    val recorder = LoginMetricsRecorder(store, registry, clock)
+
+    application { module(registry, recorder) }
+
+    runBlocking {
+      recorder.recordSuccess("2333", LoginSuccessMode.MANUAL)
+      recorder.recordSuccess("2444", LoginSuccessMode.PRELOAD_AUTO)
+    }
+
+    val rootResponse = client.get("/")
+    assertEquals(HttpStatusCode.OK, rootResponse.status)
+
+    val metricsResponse = client.get("/metrics")
+    assertEquals(HttpStatusCode.OK, metricsResponse.status)
+    val metrics = metricsResponse.bodyAsText()
+
+    assertContains(metrics, "ubaa_auth_login_success_total")
+    assertContains(metrics, "mode=\"manual\"")
+    assertContains(metrics, "mode=\"preload_auto\"")
+    assertContains(metrics, "ubaa_auth_login_events_window{window=\"1h\"}")
+    assertContains(metrics, "ubaa_auth_login_unique_users_window{window=\"1h\"}")
+    assertContains(metrics, "ktor_http_server_requests_seconds_count")
+  }
+
+  @Test
+  fun customGaugesRemainSingleRegisteredAcrossRepeatedBindings() {
+    val registry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+    val firstRecorder = LoginMetricsRecorder(InMemoryLoginStatsStore(), registry)
+    val secondRecorder = LoginMetricsRecorder(InMemoryLoginStatsStore(), registry)
+
+    firstRecorder.bindMetrics()
+    secondRecorder.bindMetrics()
+
+    assertEquals(
+        4,
+        registry.meters.count { it.id.name == "ubaa.auth.login.events.window" },
+    )
+    assertEquals(
+        4,
+        registry.meters.count { it.id.name == "ubaa.auth.login.unique.users.window" },
+    )
+
+    registerPerformanceGauges(
+        registry,
+        cn.edu.ubaa.auth.GlobalSessionManager.instance,
+        cn.edu.ubaa.bykc.GlobalBykcService.instance,
+        cn.edu.ubaa.cgyy.GlobalCgyyService.instance,
+        cn.edu.ubaa.spoc.GlobalSpocService.instance,
+        cn.edu.ubaa.ygdk.GlobalYgdkService.instance,
+    )
+    registerPerformanceGauges(
+        registry,
+        cn.edu.ubaa.auth.GlobalSessionManager.instance,
+        cn.edu.ubaa.bykc.GlobalBykcService.instance,
+        cn.edu.ubaa.cgyy.GlobalCgyyService.instance,
+        cn.edu.ubaa.spoc.GlobalSpocService.instance,
+        cn.edu.ubaa.ygdk.GlobalYgdkService.instance,
+    )
+
+    val customGaugeNames =
+        setOf(
+            "ubaa.sessions.active",
+            "ubaa.sessions.prelogin",
+            "ubaa.signin.cache",
+            "ubaa.bykc.cache",
+            "ubaa.cgyy.cache",
+            "ubaa.spoc.cache",
+            "ubaa.ygdk.cache",
+        )
+    assertTrue(
+        registry.meters
+            .filter { it.id.name in customGaugeNames }
+            .map { it.id.name }
+            .groupingBy { it }
+            .eachCount()
+            .values
+            .all { it == 1 }
+    )
+  }
+}

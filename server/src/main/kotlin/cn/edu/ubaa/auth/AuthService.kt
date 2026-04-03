@@ -6,6 +6,9 @@ import cn.edu.ubaa.model.dto.LoginResponse
 import cn.edu.ubaa.model.dto.TokenRefreshResponse
 import cn.edu.ubaa.model.dto.UserData
 import cn.edu.ubaa.model.dto.UserInfoResponse
+import cn.edu.ubaa.metrics.LoginMetricsSink
+import cn.edu.ubaa.metrics.LoginSuccessMode
+import cn.edu.ubaa.metrics.NoOpLoginMetricsSink
 import cn.edu.ubaa.utils.VpnCipher
 import io.ktor.client.HttpClient
 import io.ktor.client.call.*
@@ -27,6 +30,7 @@ import org.slf4j.LoggerFactory
 class AuthService(
     private val sessionManager: SessionManager = GlobalSessionManager.instance,
     private val refreshTokenService: RefreshTokenService = GlobalRefreshTokenService.instance,
+    private val loginMetricsSink: LoginMetricsSink = NoOpLoginMetricsSink,
 ) {
 
   internal fun interface DerivedClientFactory {
@@ -184,6 +188,7 @@ class AuthService(
       if (userData != null && portalState.isReady) {
         sessionManager.commitSession(activeCandidate, userData, portalState.portalType)
         committed = true
+        safeRecordLoginSuccess(activeCandidate.username, LoginSuccessMode.MANUAL)
         return refreshTokenService.issueLoginTokens(userData, activeCandidate.username)
       }
       failLogin("session verification failed or academic portal initialization failed")
@@ -254,6 +259,7 @@ class AuthService(
                 sessionManager.promotePreLoginSession(clientId, userData.schoolid)
             if (sessionCandidate != null) {
               sessionManager.commitSession(sessionCandidate, userData, portalState.portalType)
+              safeRecordLoginSuccess(sessionCandidate.username, LoginSuccessMode.PRELOAD_AUTO)
               val tokenResponse = refreshTokenService.issueTokens(sessionCandidate.username)
               return@withNoRedirectClient LoginPreloadResponse(
                   captchaRequired = false,
@@ -378,6 +384,14 @@ class AuthService(
       return true
     }
     return false
+  }
+
+  private suspend fun safeRecordLoginSuccess(username: String, mode: LoginSuccessMode) {
+    try {
+      loginMetricsSink.recordSuccess(username, mode)
+    } catch (e: Exception) {
+      log.warn("Failed to record login metrics for user {}", username, e)
+    }
   }
 
   /**

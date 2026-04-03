@@ -14,13 +14,13 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.utils.io.ByteReadChannel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 
 class AuthServiceLoginMetricsTest {
@@ -124,7 +124,8 @@ class AuthServiceLoginMetricsTest {
             portalProbe = { AcademicPortalProbeResult.UNAVAILABLE },
             scope = kotlinx.coroutines.CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
         )
-    val authService = AuthService(sessionManager, refreshTokenService, sink, portalWarmupCoordinator)
+    val authService =
+        AuthService(sessionManager, refreshTokenService, sink, portalWarmupCoordinator)
 
     val response = authService.login(LoginRequest(username = "2333", password = "secret"))
 
@@ -142,10 +143,16 @@ class AuthServiceLoginMetricsTest {
             portalProbe = { AcademicPortalProbeResult.UNAVAILABLE },
             scope = kotlinx.coroutines.CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
         )
-    val authService = AuthService(sessionManager, refreshTokenService, portalWarmupCoordinator = portalWarmupCoordinator)
+    val authService =
+        AuthService(
+            sessionManager,
+            refreshTokenService,
+            portalWarmupCoordinator = portalWarmupCoordinator,
+        )
 
     val candidate = sessionManager.prepareSession("2333")
-    val session = sessionManager.commitSession(candidate, UserData(name = "Alice", schoolid = "2333"))
+    val session =
+        sessionManager.commitSession(candidate, UserData(name = "Alice", schoolid = "2333"))
 
     assertTrue(authService.validateSession(session))
   }
@@ -256,9 +263,9 @@ class AuthServiceLoginMetricsTest {
                     headers = jsonHeaders(),
                 )
             request.method == HttpMethod.Get &&
-                request.url.toString().endsWith(
-                    "/gsapp/sys/yjsemaphome/modules/pubWork/getUserInfo.do"
-                ) ->
+                request.url
+                    .toString()
+                    .endsWith("/gsapp/sys/yjsemaphome/modules/pubWork/getUserInfo.do") ->
                 respond(
                     content = """{"code":"1","data":{}}""",
                     status = HttpStatusCode.OK,
@@ -271,8 +278,7 @@ class AuthServiceLoginMetricsTest {
                     status = HttpStatusCode.OK,
                     headers = headersOf(HttpHeaders.ContentType, ContentType.Image.JPEG.toString()),
                 )
-            else ->
-                error("Unexpected request ${request.method.value} ${request.url}")
+            else -> error("Unexpected request ${request.method.value} ${request.url}")
           }
         }
       }
@@ -281,29 +287,31 @@ class AuthServiceLoginMetricsTest {
 
   private fun loginPageHtml(): String {
     return """
-      <html>
-        <body>
-          <form id="fm1" action="/login">
-            <input type="hidden" name="execution" value="e1s1" />
-          </form>
-        </body>
-      </html>
-    """.trimIndent()
+    <html>
+      <body>
+        <form id="fm1" action="/login">
+          <input type="hidden" name="execution" value="e1s1" />
+        </form>
+      </body>
+    </html>
+    """
+        .trimIndent()
   }
 
   private fun captchaPageHtml(): String {
     return """
-      <html>
-        <body>
-          <form id="fm1" action="/login">
-            <input type="hidden" name="execution" value="e1s1" />
-          </form>
-          <script>
-            config.captcha = { type: 'image', id: 'captcha-1' };
-          </script>
-        </body>
-      </html>
-    """.trimIndent()
+    <html>
+      <body>
+        <form id="fm1" action="/login">
+          <input type="hidden" name="execution" value="e1s1" />
+        </form>
+        <script>
+          config.captcha = { type: 'image', id: 'captcha-1' };
+        </script>
+      </body>
+    </html>
+    """
+        .trimIndent()
   }
 
   private fun htmlHeaders() = headersOf(HttpHeaders.ContentType, ContentType.Text.Html.toString())

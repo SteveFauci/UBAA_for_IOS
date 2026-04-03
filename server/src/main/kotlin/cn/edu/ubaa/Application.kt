@@ -1,14 +1,11 @@
 package cn.edu.ubaa
 
-import cn.edu.ubaa.auth.GlobalRefreshTokenService
 import cn.edu.ubaa.auth.GlobalAcademicPortalWarmupCoordinator
+import cn.edu.ubaa.auth.GlobalRefreshTokenService
 import cn.edu.ubaa.auth.GlobalSessionManager
 import cn.edu.ubaa.auth.JwtAuth
 import cn.edu.ubaa.auth.JwtAuth.configureJwtAuth
 import cn.edu.ubaa.auth.authRouting
-import cn.edu.ubaa.metrics.GaugeBindings
-import cn.edu.ubaa.metrics.LoginMetricsRecorder
-import cn.edu.ubaa.metrics.RedisLoginStatsStore
 import cn.edu.ubaa.bykc.GlobalBykcService
 import cn.edu.ubaa.bykc.bykcRouting
 import cn.edu.ubaa.cgyy.GlobalCgyyService
@@ -16,6 +13,9 @@ import cn.edu.ubaa.cgyy.cgyyRouting
 import cn.edu.ubaa.classroom.classroomRouting
 import cn.edu.ubaa.evaluation.evaluationRouting
 import cn.edu.ubaa.exam.examRouting
+import cn.edu.ubaa.metrics.GaugeBindings
+import cn.edu.ubaa.metrics.LoginMetricsRecorder
+import cn.edu.ubaa.metrics.RedisLoginStatsStore
 import cn.edu.ubaa.schedule.scheduleRouting
 import cn.edu.ubaa.signin.SigninService
 import cn.edu.ubaa.signin.signinRouting

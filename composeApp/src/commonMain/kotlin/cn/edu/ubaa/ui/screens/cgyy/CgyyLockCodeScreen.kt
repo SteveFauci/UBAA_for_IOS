@@ -41,84 +41,83 @@ fun CgyyLockCodeScreen(viewModel: CgyyViewModel) {
   LaunchedEffect(Unit) { viewModel.ensureLockCodeLoaded() }
 
   val pullRefreshState =
-          rememberPullRefreshState(
-                  refreshing = uiState.isLockCodeLoading,
-                  onRefresh = viewModel::loadLockCode,
-          )
+      rememberPullRefreshState(
+          refreshing = uiState.isLockCodeLoading,
+          onRefresh = viewModel::loadLockCode,
+      )
 
   Box(modifier = Modifier.fillMaxSize().pullRefresh(pullRefreshState)) {
     Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
       uiState.lockCodeError?.let { CgyyMessageBanner(it) }
 
       CgyySectionCard(title = "密码状态") {
         when {
           parsedLockCode?.hasLockCode == true -> {
-          CgyyStatusChip(
-                  text = "当前时段可开门",
-                  color = MaterialTheme.colorScheme.primary,
-          )
-          Card(
-                  modifier = Modifier.fillMaxWidth(),
-                  colors =
-                          CardDefaults.cardColors(
-                                  containerColor = MaterialTheme.colorScheme.primaryContainer
-                          ),
-          ) {
-            Column(
-                    modifier =
-                            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+            CgyyStatusChip(
+                text = "当前时段可开门",
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
             ) {
-              Text(
-                      text = parsedLockCode.qrCode.orEmpty(),
-                      fontFamily = FontFamily.Monospace,
-                      style = MaterialTheme.typography.headlineSmall,
-                      fontWeight = FontWeight.Bold,
-              )
-              parsedLockCode.dueDate?.let {
+              Column(
+                  modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                  horizontalAlignment = Alignment.CenterHorizontally,
+                  verticalArrangement = Arrangement.spacedBy(6.dp),
+              ) {
                 Text(
-                        text = "有效期至 $it",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                      )
+                    text = parsedLockCode.qrCode.orEmpty(),
+                    fontFamily = FontFamily.Monospace,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+                parsedLockCode.dueDate?.let {
+                  Text(
+                      text = "有效期至 $it",
+                      style = MaterialTheme.typography.bodySmall,
+                      color = MaterialTheme.colorScheme.onPrimaryContainer,
+                  )
+                }
               }
             }
           }
-          }
           parsedLockCode?.hasUpcomingReservation == true -> {
-          CgyyStatusChip(
-                  text = "未到开门时段",
-                  color = MaterialTheme.colorScheme.error,
-          )
-          Text(
-                  text =
-                          if (uiState.isLockCodeLoading) {
-                            "正在获取密码，请稍候..."
-                          } else {
-                            "你当前没有正在进行中的预约，门锁密码会在可开门时段内返回。"
-                          },
-                  style = MaterialTheme.typography.bodyMedium,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
+            CgyyStatusChip(
+                text = "未到开门时段",
+                color = MaterialTheme.colorScheme.error,
+            )
+            Text(
+                text =
+                    if (uiState.isLockCodeLoading) {
+                      "正在获取密码，请稍候..."
+                    } else {
+                      "你当前没有正在进行中的预约，门锁密码会在可开门时段内返回。"
+                    },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
           }
           else -> {
             CgyyStatusChip(
-                    text = "当前无可用预约",
-                    color = MaterialTheme.colorScheme.error,
+                text = "当前无可用预约",
+                color = MaterialTheme.colorScheme.error,
             )
             Text(
-                    text =
-                            if (uiState.isLockCodeLoading) {
-                              "正在获取密码，请稍候..."
-                            } else {
-                              "当前没有可用于获取门锁密码的预约记录。"
-                            },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text =
+                    if (uiState.isLockCodeLoading) {
+                      "正在获取密码，请稍候..."
+                    } else {
+                      "当前没有可用于获取门锁密码的预约记录。"
+                    },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
           }
         }
@@ -138,15 +137,15 @@ fun CgyyLockCodeScreen(viewModel: CgyyViewModel) {
       }
 
       Text(
-              text = "若无密码但确认已到预约时段，请下拉刷新或重新进入页面。",
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.primary,
+          text = "若无密码但确认已到预约时段，请下拉刷新或重新进入页面。",
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.primary,
       )
     }
     PullRefreshIndicator(
-            refreshing = uiState.isLockCodeLoading,
-            state = pullRefreshState,
-            modifier = Modifier.align(Alignment.TopCenter),
+        refreshing = uiState.isLockCodeLoading,
+        state = pullRefreshState,
+        modifier = Modifier.align(Alignment.TopCenter),
     )
   }
 }
@@ -156,46 +155,46 @@ private fun CgyyInfoLine(label: String, value: String?) {
   if (value.isNullOrBlank()) return
   Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
     Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        text = label,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+        text = value,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurface,
     )
     Spacer(modifier = Modifier.height(4.dp))
   }
 }
 
 internal data class CgyyLockCodeDisplayModel(
-        val qrCode: String?,
-        val dueDate: String?,
-        val tradeNo: String?,
-        val venueName: String?,
-        val siteName: String?,
-        val spaceName: String?,
-        val orderName: String?,
-        val reservationDate: String?,
-        val reservationDateDetail: String?,
-        val reservationStartDate: String?,
-        val reservationEndDate: String?,
+    val qrCode: String?,
+    val dueDate: String?,
+    val tradeNo: String?,
+    val venueName: String?,
+    val siteName: String?,
+    val spaceName: String?,
+    val orderName: String?,
+    val reservationDate: String?,
+    val reservationDateDetail: String?,
+    val reservationStartDate: String?,
+    val reservationEndDate: String?,
 ) {
   val hasLockCode: Boolean
     get() = !qrCode.isNullOrBlank() && qrCode != "null"
 
   val hasUpcomingReservation: Boolean
     get() =
-            !tradeNo.isNullOrBlank() ||
-                    !reservationDate.isNullOrBlank() ||
-                    !reservationStartDate.isNullOrBlank()
+        !tradeNo.isNullOrBlank() ||
+            !reservationDate.isNullOrBlank() ||
+            !reservationStartDate.isNullOrBlank()
 
   val venueText: String?
     get() =
-            listOf(venueName.orNullIfBlank(), siteName.orNullIfBlank()).joinToString(" ").ifBlank {
-              null
-            }
+        listOf(venueName.orNullIfBlank(), siteName.orNullIfBlank()).joinToString(" ").ifBlank {
+          null
+        }
 
   val timeRangeText: String?
     get() = reservationDateDetail.orNullIfBlank()?.withoutLeadingSpaceLabel(spaceName, siteName)
@@ -205,17 +204,17 @@ internal fun JsonElement?.toLockCodeDisplayModel(): CgyyLockCodeDisplayModel? {
   val root = this as? JsonObject ?: return null
   val orderView = root["orderView"] as? JsonObject
   return CgyyLockCodeDisplayModel(
-          qrCode = root.stringValue("qrCode"),
-          dueDate = root.stringValue("dueDate"),
-          tradeNo = orderView.stringValue("tradeNo"),
-          venueName = orderView.stringValue("venueName"),
-          siteName = orderView.stringValue("siteName"),
-          spaceName = orderView.stringValue("venueSpaceName"),
-          orderName = orderView.stringValue("orderName"),
-          reservationDate = orderView.stringValue("reservationDate"),
-          reservationDateDetail = orderView.stringValue("reservationDateDetail"),
-          reservationStartDate = orderView.stringValue("reservationStartDate"),
-          reservationEndDate = orderView.stringValue("reservationEndDate"),
+      qrCode = root.stringValue("qrCode"),
+      dueDate = root.stringValue("dueDate"),
+      tradeNo = orderView.stringValue("tradeNo"),
+      venueName = orderView.stringValue("venueName"),
+      siteName = orderView.stringValue("siteName"),
+      spaceName = orderView.stringValue("venueSpaceName"),
+      orderName = orderView.stringValue("orderName"),
+      reservationDate = orderView.stringValue("reservationDate"),
+      reservationDateDetail = orderView.stringValue("reservationDateDetail"),
+      reservationStartDate = orderView.stringValue("reservationStartDate"),
+      reservationEndDate = orderView.stringValue("reservationEndDate"),
   )
 }
 
@@ -234,7 +233,7 @@ private fun String?.orNullIfBlank(): String? {
 private fun String.withoutLeadingSpaceLabel(vararg labels: String?): String {
   val normalized = trim()
   val matchedLabel =
-          labels.mapNotNull { it.orNullIfBlank() }.firstOrNull { normalized.startsWith(it) }
-                  ?: return normalized
+      labels.mapNotNull { it.orNullIfBlank() }.firstOrNull { normalized.startsWith(it) }
+          ?: return normalized
   return normalized.removePrefix(matchedLabel).trimStart(' ', '/', '-', '>')
 }

@@ -6,7 +6,8 @@ internal suspend fun ensureUndergradPortalAccess(
     session: SessionManager.UserSession,
     graduateUnsupportedMessage: String,
     unavailableExceptionFactory: () -> Exception,
-    warmupCoordinator: AcademicPortalWarmupCoordinator = GlobalAcademicPortalWarmupCoordinator.instance,
+    warmupCoordinator: AcademicPortalWarmupCoordinator =
+        GlobalAcademicPortalWarmupCoordinator.instance,
 ) {
   when (session.portalType) {
     AcademicPortalType.UNDERGRAD -> return

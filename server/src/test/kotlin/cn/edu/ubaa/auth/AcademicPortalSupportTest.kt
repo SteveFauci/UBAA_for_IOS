@@ -183,28 +183,26 @@ class AcademicPortalSupportTest {
     val session = sessionManager.commitSession(candidate, UserData("Alice", "2418"))
 
     coroutineScope {
-      val first =
-          async {
-            ensureUndergradPortalAccess(
-                sessionManager = sessionManager,
-                username = "undergrad-user",
-                session = session,
-                graduateUnsupportedMessage = "unsupported",
-                unavailableExceptionFactory = { IllegalStateException("unavailable") },
-                warmupCoordinator = warmupCoordinator,
-            )
-          }
-      val second =
-          async {
-            ensureUndergradPortalAccess(
-                sessionManager = sessionManager,
-                username = "undergrad-user",
-                session = session,
-                graduateUnsupportedMessage = "unsupported",
-                unavailableExceptionFactory = { IllegalStateException("unavailable") },
-                warmupCoordinator = warmupCoordinator,
-            )
-          }
+      val first = async {
+        ensureUndergradPortalAccess(
+            sessionManager = sessionManager,
+            username = "undergrad-user",
+            session = session,
+            graduateUnsupportedMessage = "unsupported",
+            unavailableExceptionFactory = { IllegalStateException("unavailable") },
+            warmupCoordinator = warmupCoordinator,
+        )
+      }
+      val second = async {
+        ensureUndergradPortalAccess(
+            sessionManager = sessionManager,
+            username = "undergrad-user",
+            session = session,
+            graduateUnsupportedMessage = "unsupported",
+            unavailableExceptionFactory = { IllegalStateException("unavailable") },
+            warmupCoordinator = warmupCoordinator,
+        )
+      }
       first.await()
       second.await()
     }
@@ -212,7 +210,9 @@ class AcademicPortalSupportTest {
     assertEquals(1, probeCalls.get())
     assertEquals(
         AcademicPortalType.UNDERGRAD,
-        sessionManager.getSession("undergrad-user", SessionManager.SessionAccess.READ_ONLY)?.portalType,
+        sessionManager
+            .getSession("undergrad-user", SessionManager.SessionAccess.READ_ONLY)
+            ?.portalType,
     )
   }
 

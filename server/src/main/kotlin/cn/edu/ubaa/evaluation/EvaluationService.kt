@@ -4,9 +4,9 @@ import cn.edu.ubaa.model.evaluation.EvaluationCourse
 import cn.edu.ubaa.model.evaluation.EvaluationCoursesResponse
 import cn.edu.ubaa.model.evaluation.EvaluationProgress
 import cn.edu.ubaa.model.evaluation.EvaluationResult
+import cn.edu.ubaa.utils.withUpstreamDeadline
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.seconds
-import cn.edu.ubaa.utils.withUpstreamDeadline
 import kotlinx.serialization.json.*
 import org.slf4j.LoggerFactory
 

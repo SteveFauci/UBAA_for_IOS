@@ -35,8 +35,8 @@ import cn.edu.ubaa.ui.screens.classroom.ClassroomQueryScreen
 import cn.edu.ubaa.ui.screens.classroom.ClassroomViewModel
 import cn.edu.ubaa.ui.screens.evaluation.EvaluationScreen
 import cn.edu.ubaa.ui.screens.evaluation.EvaluationViewModel
-import cn.edu.ubaa.ui.screens.exam.ExamUiState
 import cn.edu.ubaa.ui.screens.exam.ExamScreen
+import cn.edu.ubaa.ui.screens.exam.ExamUiState
 import cn.edu.ubaa.ui.screens.exam.ExamViewModel
 import cn.edu.ubaa.ui.screens.menu.*
 import cn.edu.ubaa.ui.screens.schedule.CourseDetailScreen
@@ -104,16 +104,15 @@ fun MainAppScreen(
 ) {
   val navController = rememberNavigationController()
   val currentScreen = navController.currentScreen
-  val cgyyScreens =
-      remember {
-        setOf(
-            AppScreen.CGYY_HOME,
-            AppScreen.CGYY_RESERVE_PICKER,
-            AppScreen.CGYY_RESERVE_FORM,
-            AppScreen.CGYY_ORDERS,
-            AppScreen.CGYY_LOCK_CODE,
-        )
-      }
+  val cgyyScreens = remember {
+    setOf(
+        AppScreen.CGYY_HOME,
+        AppScreen.CGYY_RESERVE_PICKER,
+        AppScreen.CGYY_RESERVE_FORM,
+        AppScreen.CGYY_ORDERS,
+        AppScreen.CGYY_LOCK_CODE,
+    )
+  }
   val ygdkScreens = remember { setOf(AppScreen.YGDK_HOME, AppScreen.YGDK_FORM) }
 
   var selectedBottomTab by remember { mutableStateOf(BottomNavTab.HOME) }

@@ -2,8 +2,8 @@ package cn.edu.ubaa.ui
 
 import cn.edu.ubaa.model.dto.CgyyOrderDto
 import cn.edu.ubaa.model.dto.displayReservationDateText
-import cn.edu.ubaa.ui.screens.cgyy.toLockCodeDisplayModel
 import cn.edu.ubaa.ui.screens.cgyy.shouldShowCancelAction
+import cn.edu.ubaa.ui.screens.cgyy.toLockCodeDisplayModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

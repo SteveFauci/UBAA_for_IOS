@@ -3,9 +3,9 @@ package cn.edu.ubaa.spoc
 import cn.edu.ubaa.model.dto.SpocAssignmentDetailDto
 import cn.edu.ubaa.model.dto.SpocAssignmentSummaryDto
 import cn.edu.ubaa.model.dto.SpocAssignmentsResponse
+import cn.edu.ubaa.utils.withUpstreamDeadline
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.seconds
-import cn.edu.ubaa.utils.withUpstreamDeadline
 import org.slf4j.LoggerFactory
 
 /** SPOC 作业业务服务。 */
@@ -27,7 +27,8 @@ internal class SpocService(private val clientProvider: (String) -> SpocClient = 
           try {
             client.getCourses(termCode).associateBy { it.kcid }
           } catch (e: Exception) {
-            // Degrade gracefully: assignments can still be shown even if course metadata is missing.
+            // Degrade gracefully: assignments can still be shown even if course metadata is
+            // missing.
             log.warn(
                 "Failed to fetch SPOC courses for username={} termCode={}, continuing without course metadata",
                 username,
@@ -57,7 +58,8 @@ internal class SpocService(private val clientProvider: (String) -> SpocClient = 
                     dueTime = SpocParsers.normalizeDateTime(assignment.zyjzsj),
                     score = SpocParsers.normalizeScore(assignment.mf),
                     submissionStatus = status,
-                    submissionStatusText = SpocParsers.submissionStatusText(status, assignment.tjzt),
+                    submissionStatusText =
+                        SpocParsers.submissionStatusText(status, assignment.tjzt),
                 )
               }
               .sortedWith(

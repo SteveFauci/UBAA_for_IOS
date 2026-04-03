@@ -10,8 +10,8 @@ import cn.edu.ubaa.model.dto.BykcSuccessResponse
 import cn.edu.ubaa.model.dto.BykcUserProfileDto
 import cn.edu.ubaa.utils.UpstreamTimeoutException
 import io.ktor.http.*
-import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.*
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*

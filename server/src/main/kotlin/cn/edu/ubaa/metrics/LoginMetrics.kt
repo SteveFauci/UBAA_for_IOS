@@ -58,13 +58,17 @@ class LoginMetricsRecorder(
           registry = registry,
           name = "ubaa.auth.login.events.window",
           tags = mapOf("window" to window.tagValue),
-      ) { store.countEvents(window, clock.instant()).toDouble() }
+      ) {
+        store.countEvents(window, clock.instant()).toDouble()
+      }
 
       GaugeBindings.bind(
           registry = registry,
           name = "ubaa.auth.login.unique.users.window",
           tags = mapOf("window" to window.tagValue),
-      ) { store.countUniqueUsers(window, clock.instant()).toDouble() }
+      ) {
+        store.countUniqueUsers(window, clock.instant()).toDouble()
+      }
     }
   }
 
@@ -108,9 +112,7 @@ class RedisLoginStatsStore(
   override fun countEvents(window: LoginMetricWindow, now: Instant): Long {
     val buckets = bucketsFor(window, now)
     return runCatching {
-          buckets.sumOf { bucket ->
-            commands.get(eventKey(bucket))?.toLongOrNull() ?: 0L
-          }
+          buckets.sumOf { bucket -> commands.get(eventKey(bucket))?.toLongOrNull() ?: 0L }
         }
         .getOrDefault(0L)
   }
@@ -167,9 +169,10 @@ class InMemoryLoginStatsStore : LoginStatsStore {
   }
 
   override fun countUniqueUsers(window: LoginMetricWindow, now: Instant): Long {
-    return bucketsFor(window, now).flatMapTo(linkedSetOf()) { bucket ->
-      buckets[bucket]?.users.orEmpty()
-    }.size.toLong()
+    return bucketsFor(window, now)
+        .flatMapTo(linkedSetOf()) { bucket -> buckets[bucket]?.users.orEmpty() }
+        .size
+        .toLong()
   }
 
   override fun close() {

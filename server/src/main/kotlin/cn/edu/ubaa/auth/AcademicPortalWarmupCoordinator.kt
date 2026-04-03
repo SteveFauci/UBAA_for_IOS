@@ -16,7 +16,8 @@ class AcademicPortalWarmupCoordinator(
         ByxtService::initializeSession,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) {
-  private val inflightProbes = ConcurrentHashMap<String, kotlinx.coroutines.Deferred<AcademicPortalProbeResult>>()
+  private val inflightProbes =
+      ConcurrentHashMap<String, kotlinx.coroutines.Deferred<AcademicPortalProbeResult>>()
 
   fun warmup(username: String, client: HttpClient) {
     ensureProbe(username, client)
@@ -40,12 +41,11 @@ class AcademicPortalWarmupCoordinator(
       username: String,
       client: HttpClient,
   ): kotlinx.coroutines.Deferred<AcademicPortalProbeResult> {
-    inflightProbes[username]?.let { return it }
+    inflightProbes[username]?.let {
+      return it
+    }
 
-    val deferred =
-        scope.async(start = CoroutineStart.LAZY) {
-          portalProbe(client)
-        }
+    val deferred = scope.async(start = CoroutineStart.LAZY) { portalProbe(client) }
     val existing = inflightProbes.putIfAbsent(username, deferred)
     if (existing != null) {
       deferred.cancel()

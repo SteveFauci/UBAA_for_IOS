@@ -360,8 +360,7 @@ class CgyyZhjsClient(
               ?.jsonObject
               ?.get("access_token")
               ?.jsonPrimitive
-              ?.contentOrNull
-              ?: throw CgyyException("研讨室登录成功但未返回 access_token", "unauthenticated")
+              ?.contentOrNull ?: throw CgyyException("研讨室登录成功但未返回 access_token", "unauthenticated")
     }
   }
 

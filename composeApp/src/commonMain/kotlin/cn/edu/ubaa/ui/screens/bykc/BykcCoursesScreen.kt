@@ -74,9 +74,7 @@ fun BykcCoursesScreen(
       when {
         isLoading && courses.isEmpty() -> {
           Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-              Text("加载中...")
-            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) { Text("加载中...") }
           }
         }
         error != null -> {

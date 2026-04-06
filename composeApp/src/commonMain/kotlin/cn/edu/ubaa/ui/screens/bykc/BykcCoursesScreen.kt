@@ -75,9 +75,7 @@ fun BykcCoursesScreen(
         isLoading && courses.isEmpty() -> {
           Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-              CircularProgressIndicator()
-              Spacer(modifier = Modifier.height(8.dp))
-              Text("加载课程列表...")
+              Text("加载中...")
             }
           }
         }
